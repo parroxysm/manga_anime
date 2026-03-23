@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -27,6 +28,12 @@ const HomePage = () => {
     loadFavorites();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
+
   const loadFavorites = async () => {
     try {
       const data = await AsyncStorage.getItem('favorites');
@@ -38,14 +45,22 @@ const HomePage = () => {
   };
 
   const toggleFavorite = async (id) => {
-    let updatedFavorites;
-    if (favorites.includes(id)) {
-      updatedFavorites = favorites.filter(f => f !== id);
-    } else {
-      updatedFavorites = [...favorites, id];
+    try {
+      const stringId = String(id);
+      const data = await AsyncStorage.getItem('favorites');
+      const currentFavorites = data
+        ? [...new Set(JSON.parse(data).map((favId) => String(favId)))]
+        : [];
+
+      const updatedFavorites = currentFavorites.includes(stringId)
+        ? currentFavorites.filter((favId) => favId !== stringId)
+        : [...currentFavorites, stringId];
+
+      setFavorites(updatedFavorites);
+      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+    } catch (error) {
+      console.error('Eroare la actualizarea favoritelor:', error);
     }
-    setFavorites(updatedFavorites);
-    await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
   };
 
 
@@ -132,6 +147,8 @@ export default function Main(){
       name="Home" 
       options={{headerShown: true, headerTitle: 'Anime Characters', headerTitleAlign: 'center', headerTintColor: 'white', headerStyle: styles.AnimePageHeaderStyle}}
       component={HomePage} />
+    <Tab.Screen name="test1" component={FavoritesScreen} />
+    <Tab.Screen name="test2" component={FavoritesScreen} />
     <Tab.Screen name="Profile" component={FavoritesScreen} />
   </Tab.Navigator>
   );

@@ -79,14 +79,26 @@ export default function FavoritesScreen() {
   };
 
   const toggleFavorite = async (id) => {
-    let updatedFavorites;
-    if (favorites.includes(id)) {
-      updatedFavorites = favorites.filter(f => f !== id);
-    } else {
-      updatedFavorites = [...favorites, id];
+    let allFavorites = [];
+    try {
+      const stringId = String(id);
+      const data = await AsyncStorage.getItem('favorites');
+      const currentFavorites = data
+        ? [...new Set(JSON.parse(data).map((favId) => String(favId)))]
+        : [];
+      allFavorites = currentFavorites.includes(stringId)
+        ? currentFavorites.filter((favId) => favId !== stringId)
+        : [...currentFavorites, stringId];
+        for(let i = id; i < allFavorites.length; i++) {
+          allFavorites[i] = allFavorites[i + 1];
+          }
+      setFavorites(allFavorites);
+      await AsyncStorage.setItem('favorites', JSON.stringify(allFavorites));
+      fetchFavorites(allFavorites);
+    } catch (error) {
+      console.log(error);
     }
-    setFavorites(updatedFavorites);
-    await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+
   };
   if (loading) {
     return (
@@ -124,7 +136,7 @@ export default function FavoritesScreen() {
             <View style={styles.infoAnimeCard}>
               <View style={ styles.nameAndFavoriteContainer }>
                 <Text style={styles.titluAnimeCard}>{item.name}</Text>
-                <TouchableOpacity onPress={() => {toggleFavorite(item.id), loadFavorites()}}>
+                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
                   <Ionicons name={favorites.includes(item.id) ? "heart" : "heart-outline"} size={30} color={favorites.includes(item.id) ? "gold" : "#ccc"}/>
                 </TouchableOpacity>
               </View>

@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
 import {
   ActivityIndicator,
   FlatList,
@@ -19,49 +20,72 @@ const Tab = createBottomTabNavigator();
 
 const HomePage = () => {
   const router = useRouter();
+  const [userId, setUserId] = useState(0);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
-    getInfo();
-    loadFavorites();
+    const init = async () => {
+    await getUserId();
+    await getInfo();
+    };
+
+    init();
+    console.log("USERID:", userId);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadFavorites();
-    }, [])
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.addListener('tabPress', () => {
+      getInfo();
+    });
+  }, [navigation]);
+
+  const getUserId = async () => { 
+    try {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      const parsed = storedUserId ? Number(storedUserId) : null;
+      if(parsed == 0){
+        router.replace('/logInScreen');
+      }
+      setUserId(parsed);
+
+      console.log("USERID:", parsed);
+      return parsed;
+    } catch (error) { 
+      console.log(error);
+    }
+  };
+
+const toggleFavorite = async (id) => {
+  if (!userId) return;
+
+  setFavorites(prev =>
+    prev.includes(id)
+      ? prev.filter(f => f !== id)
+      : [...prev, id]
   );
 
-  const loadFavorites = async () => {
-    try {
-      const data = await AsyncStorage.getItem('favorites');
-      const savedFavorites = data ? JSON.parse(data) : [];
-      setFavorites(savedFavorites);
-    } catch (error) {
-      console.error('Eroare la citirea favoritelor:', error);
-    }
-  };
+  try {
+    const response = await fetch('http://192.168.x.x:3000/toggle-favorite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: Number(userId),
+        characterId: id.toString()
+      })
+    });
 
-  const toggleFavorite = async (id) => {
-    try {
-      const stringId = String(id);
-      const data = await AsyncStorage.getItem('favorites');
-      const currentFavorites = data
-        ? [...new Set(JSON.parse(data).map((favId) => String(favId)))]
-        : [];
+    const data = await response.json();
+    console.log("SERVER:", data);
 
-      const updatedFavorites = currentFavorites.includes(stringId)
-        ? currentFavorites.filter((favId) => favId !== stringId)
-        : [...currentFavorites, stringId];
+    
 
-      setFavorites(updatedFavorites);
-      await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-    } catch (error) {
-      console.error('Eroare la actualizarea favoritelor:', error);
-    }
-  };
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 
   const getInfo = async () => {

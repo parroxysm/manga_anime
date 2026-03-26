@@ -1,13 +1,18 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
-import { redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
- 
 
-function SignUp() {
-
-}
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  griInput: '#2A2A2A',
+  rosuEroare: '#ff4444',
+  cardBordura: '#414141',
+  butonText: '#000'
+};
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -16,17 +21,14 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    console.log('Attempting to log in with:', username, password);
     try {
-      console.log('Sending login request to server...');
       const response = await fetch('http://192.168.1.133:3000/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-      console.log("STATUS:", response.status);
+      
       const data = await response.json();
-      console.log(data);
 
       if (data.success) {
         await AsyncStorage.setItem("userId", data.userId.toString());
@@ -34,109 +36,124 @@ export default function LoginScreen() {
       } else {
         setCheckExisted(false);
       }
-
-    }catch (error) {
+    } catch (error) {
       console.log(error);
       setCheckExisted(false);
     } 
-};
+  };
 
   return (
     <View style={styles.container}>
       {/* Log In container */}
-      <View style={ styles.containerLogIn}>
-        <Text style={styles.logInText}>Log In</Text>
+      <View style={styles.containerLogIn}>
+        <Text style={styles.logInHeader}>Welcome</Text>
+        <Text style={styles.logInSubHeader}>Log in to your account</Text>
+        
         <TextInput 
-          style={styles.nameInput}
+          style={styles.input}
           placeholder='Username'
+          placeholderTextColor="#666"
           value={username}
           onChangeText={setUsername}
+          autoCapitalize="none"
         />
+        
         <TextInput
-          style={styles.passwordInput}
+          style={styles.input}
           placeholder='Password'
+          placeholderTextColor="#666"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
+
         {checkExisted === false && (
-          <Text style={{color: 'red', alignSelf: 'center', marginTop: "15%"}}>
+          <Text style={styles.errorText}>
             Invalid username or password
           </Text>
         )}
+
         <TouchableOpacity style={styles.logInButton} onPress={handleLogin}>
           <Text style={styles.logInButtonText}>Log In</Text>
         </TouchableOpacity>
       </View>
+
       {/* Sign Up container */}
       <View style={styles.containerSignUp}>
-        <Text style={{color: '#e6e6e6',}}>Dont have an account?</Text>
-        <TouchableOpacity onPress={() => SignUp()}>
+        <Text style={{color: CULORI.griText}}>Don't have an account?</Text>
+        <TouchableOpacity onPress={() => console.log("Navigate to SignUp")}>
           <Text style={styles.signUpText}>Sign Up</Text>
         </TouchableOpacity>
       </View>
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
     alignItems: 'center',
     justifyContent: 'center',
   },
   containerLogIn: {
-    width: '80%',
-    height: "50%",
-    borderWidth: 2,
+    width: '85%',
+    padding: 25,
+    borderWidth: 1,
     borderRadius: 24,
-    borderColor: '#414141',
-    backgroundColor: '#fff',
+    borderColor: CULORI.cardBordura,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
-  logInText: {
-    fontSize: 40,
+  logInHeader: {
+    fontSize: 32,
+    color: CULORI.auriu,
     alignSelf: 'center',
     fontWeight: 'bold',
-    marginTop: "10%",
   },
-  nameInput: {
-    marginTop: "10%",
-    marginHorizontal: 20,
-    borderWidth: 1,
-    borderBottomWidth: 1,
-    borderRadius: 18,
+  logInSubHeader: {
+    fontSize: 14,
+    color: CULORI.griText,
+    alignSelf: 'center',
+    marginBottom: 30,
   },
-  passwordInput: {
-    marginTop: "10%",
-    marginHorizontal: 20,
+  input: {
+    height: 55,
+    backgroundColor: CULORI.griInput,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    color: CULORI.alb,
+    marginBottom: 15,
     borderWidth: 1,
-    borderBottomWidth: 1,
-    borderRadius: 18,
+    borderColor: '#333',
+  },
+  errorText: {
+    color: CULORI.rosuEroare,
+    alignSelf: 'center',
+    marginBottom: 10,
+    fontSize: 13,
   },
   logInButton: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: "10%",
+    backgroundColor: CULORI.auriu,
+    height: 55,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
   },
   logInButtonText: {
-    alignSelf: 'center',
-    backgroundColor: '#c8f0ff',
-    fontSize: 20,
-    borderWidth: 1,
-    borderRadius: 28,
-    paddingHorizontal: "25%",
-    paddingVertical: "5%",
+    color: CULORI.butonText,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   containerSignUp: {
     position: 'absolute',
-    bottom: "5%",
+    bottom: 40,
     flexDirection: 'row',
     gap: 5,
   },
   signUpText: {
-    color: 'blue',
+    color: CULORI.auriu,
+    fontWeight: 'bold',
     textDecorationLine: 'underline',
   },
 });

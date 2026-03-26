@@ -13,6 +13,18 @@ import {
   View
 } from 'react-native';
 
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  griSters: 'gray',
+  griSeparator: '#333',
+  cardBordura: 'rgba(255, 255, 255, 0.1)',
+  cardFundal: 'rgba(255, 255, 255, 0.05)',
+  butonFundal: 'rgba(255, 215, 0, 0.2)'
+};
+
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function FavoritesScreen() {
@@ -51,6 +63,7 @@ export default function FavoritesScreen() {
   };
 
   const loadFavorites = async (uid) => {
+    if (!uid) return;
     try {
       setLoading(true);
       const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
@@ -59,57 +72,43 @@ export default function FavoritesScreen() {
       const favIds = data.favorites.map(f => f.characterId.toString());
       await fetchAllDetails(favIds);
     } catch (e) {
-      console.log("Eroare la incarcarea favoritelor din DB:", e);
+      console.log("Eroare DB:", e);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchAllDetails = async (favIds) => {
-    try {
-      const results = [];
+    const results = [];
+    for (const rawId of favIds) {
+      const isManga = rawId.startsWith('manga_');
+      const idOnly = rawId.replace('manga_', '').replace('char_', '');
+      const url = isManga 
+        ? `https://api.jikan.moe/v4/manga/${idOnly}` 
+        : `https://api.jikan.moe/v4/characters/${idOnly}`;
 
-
-      for (const rawId of favIds) {
-        const isManga = rawId.startsWith('manga_');
-        const idOnly = rawId.replace('manga_', '').replace('char_', '');
-        const url = isManga 
-          ? `https://api.jikan.moe/v4/manga/${idOnly}` 
-          : `https://api.jikan.moe/v4/characters/${idOnly}`;
-
-        try {
-          const res = await fetch(url);
-          
-
-          if (res.status === 429) {
-            console.log("Jikan API Rate Limit lovit! Asteptam 1 secunda...");
-            await delay(1000); 
-            continue; 
-          }
-
-          const json = await res.json();
-          const item = json.data;
-
-          if (item) {
-            results.push({
-              id: rawId,
-              name: item.name || item.title || 'Unknown',
-              image: item.images?.jpg?.image_url,
-              about: (item.about || item.synopsis || 'No description available.').trim(),
-            });
-          }
-          
-          await delay(350); 
-
-        } catch (fetchError) {
-          console.log(`Eroare fetch pt ${rawId}:`, fetchError);
+      try {
+        const res = await fetch(url);
+        if (res.status === 429) {
+          await delay(1000); 
+          continue; 
         }
-      }
 
-      setAllFavorites(results);
-    } catch (error) { 
-      console.log("Eroare majora detalii:", error); 
+        const json = await res.json();
+        const item = json.data;
+
+        if (item) {
+          results.push({
+            id: rawId,
+            name: item.name || item.title || 'Unknown',
+            image: item.images?.jpg?.image_url,
+            about: (item.about || item.synopsis || 'No description available.').trim(),
+          });
+        }
+        await delay(350); 
+      } catch (err) { console.log(err); }
     }
+    setAllFavorites(results);
   };
 
   const toggleFavorite = async (id) => {
@@ -138,10 +137,9 @@ export default function FavoritesScreen() {
   );
 
   useEffect(() => {
-    const filtered = allFavorites.filter(item => {
-      if (viewType === 'manga') return item.id.startsWith('manga_');
-      return !item.id.startsWith('manga_');
-    });
+    const filtered = allFavorites.filter(item => 
+      viewType === 'manga' ? item.id.startsWith('manga_') : !item.id.startsWith('manga_')
+    );
     setFilteredItems(filtered);
   }, [viewType, allFavorites]);
 
@@ -151,10 +149,8 @@ export default function FavoritesScreen() {
         data={filteredItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingTop: 10 }}
-        
         refreshing={loading}
         onRefresh={() => loadFavorites(userId)} 
-
         ListEmptyComponent={
           !loading && <Text style={styles.emptyText}>No favorite {viewType} found.</Text>
         }
@@ -168,7 +164,7 @@ export default function FavoritesScreen() {
               <View style={styles.nameAndFavoriteContainer}>
                 <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
                 <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                  <Ionicons name="heart" size={28} color="gold" />
+                  <Ionicons name="heart" size={28} color={CULORI.auriu} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>
@@ -183,17 +179,8 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
   },
-
-  backgroundCentered: {
-    flex: 1,
-    backgroundColor: '#1E1E1E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-
   itemsCard: {
     flexDirection: 'row',
     padding: 10,
@@ -201,66 +188,55 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: CULORI.cardBordura,
+    backgroundColor: CULORI.cardFundal,
   },
-
-
   imageAnimeCard: {
     width: 90,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#333',
+    backgroundColor: CULORI.griSeparator,
   },
-
-
   infoAnimeCard: {
     flex: 1,
     marginLeft: 12,
     justifyContent: 'center',
   },
-
   nameAndFavoriteContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   titluAnimeCard: {
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'gold',
+    color: CULORI.auriu,
     marginBottom: 5,
   },
-
   informatiiAnimeCard: {
     fontSize: 13,
     lineHeight: 18,
-    color: '#bbb',
+    color: CULORI.griText,
   },
-
-
   emptyText: {
-    color: 'gray',
+    color: CULORI.griSters,
     textAlign: 'center',
     marginTop: 50,
     fontSize: 16,
   },
-
   switchButton: {
     marginRight: 15,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'gold',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: CULORI.auriu,
+    backgroundColor: CULORI.butonFundal,
   },
-
   switchButtonText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: 'gold',
+    color: CULORI.auriu,
   },
 });

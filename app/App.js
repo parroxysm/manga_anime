@@ -19,6 +19,18 @@ import SearchScreen from './SearchScreen';
 
 const Tab = createBottomTabNavigator();
 
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  griInactiv: '#ccc',
+  griSeparator: '#333',
+  cardBordura: 'rgba(255, 255, 255, 0.1)',
+  cardFundal: 'rgba(255, 255, 255, 0.05)',
+  butonFundal: 'rgba(255, 215, 0, 0.2)'
+};
+
 const HomePage = () => {
   const router = useRouter();
   const navigation = useNavigation();
@@ -34,19 +46,17 @@ const HomePage = () => {
       const uid = await getUserId();
       if (uid) {
         await loadFavorites(uid);
-        await getInfo('characters', uid);
+        await getInfo('characters');
       }
     };
     init();
   }, []);
-
 
   useFocusEffect(
     useCallback(() => {
       if (userId) loadFavorites(userId);
     }, [userId])
   );
-
 
   useEffect(() => {
     navigation.setOptions({
@@ -63,7 +73,6 @@ const HomePage = () => {
       ),
     });
   }, [navigation, viewType]);
-
 
   useEffect(() => {
     getInfo(viewType);
@@ -89,63 +98,63 @@ const HomePage = () => {
   };
 
   const getInfo = async (type) => {
-  try {
-    setLoading(true);
-    const randomPage = Math.floor(Math.random() * 20) + 1;
-    const URL = type === 'characters' 
-      ? `https://api.jikan.moe/v4/top/characters?page=${randomPage}`
-      : `https://api.jikan.moe/v4/top/manga?page=${randomPage}`;
+    try {
+      setLoading(true);
+      const randomPage = Math.floor(Math.random() * 20) + 1;
+      const URL = type === 'characters' 
+        ? `https://api.jikan.moe/v4/top/characters?page=${randomPage}`
+        : `https://api.jikan.moe/v4/top/manga?page=${randomPage}`;
 
-    const response = await fetch(URL);
-    const json = await response.json();
-    
-    if (json.data) {
-      const mappedData = json.data.map((item) => ({
-        id: type === 'manga' ? `manga_${item.mal_id}` : `char_${item.mal_id}`,
-        name: item.name || item.title || 'Unknown', 
-        image: item.images?.jpg?.image_url,
-        about: (item.about || item.synopsis || 'No description available.').trim(),
-        score: item.score || null
-      }));
+      const response = await fetch(URL);
+      const json = await response.json();
+      
+      if (json.data) {
+        const mappedData = json.data.map((item) => ({
+          id: type === 'manga' ? `manga_${item.mal_id}` : `char_${item.mal_id}`,
+          name: item.name || item.title || 'Unknown', 
+          image: item.images?.jpg?.image_url,
+          about: (item.about || item.synopsis || 'No description available.').trim(),
+          score: item.score || null
+        }));
 
-      const uniqueItems = mappedData.filter((value, index, self) =>
-        index === self.findIndex((t) => t.id === value.id)
-      );
+        const uniqueItems = mappedData.filter((value, index, self) =>
+          index === self.findIndex((t) => t.id === value.id)
+        );
 
-      setItems(uniqueItems);
+        setItems(uniqueItems);
+      }
+    } catch (error) {
+      console.error("Eroare API:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Eroare la API:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const toggleFavorite = async (id) => {
-  if (!userId) return;
+    if (!userId) return;
 
-  setFavorites(prev => 
-    prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-  );
+    setFavorites(prev => 
+      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+    );
 
-  try {
-    await fetch('http://192.168.1.133:3000/toggle-favorite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userId: Number(userId), 
-        characterId: id
-      })
-    });
-  } catch (err) {
-    console.log("Eroare la salvare:", err);
-  }
-};
+    try {
+      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: Number(userId), 
+          characterId: id
+        })
+      });
+    } catch (err) {
+      console.log("Eroare la salvare:", err);
+    }
+  };
 
   if (loading) {
     return (
       <View style={[styles.background, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color="gold" />
+        <ActivityIndicator size="large" color={CULORI.auriu} />
       </View>
     );
   }
@@ -170,7 +179,7 @@ const HomePage = () => {
                   <Ionicons 
                     name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
                     size={28} 
-                    color={favorites.includes(item.id) ? "gold" : "#ccc"} 
+                    color={favorites.includes(item.id) ? CULORI.auriu : CULORI.griInactiv} 
                   />
                 </TouchableOpacity>
               </View>
@@ -188,9 +197,9 @@ export default function Main(){
   return(
     <Tab.Navigator screenOptions={{ 
       headerShown: true, 
-      tabBarStyle: { backgroundColor: '#1E1E1E', borderTopColor: '#333' },
+      tabBarStyle: { backgroundColor: CULORI.fundal, borderTopColor: CULORI.griSeparator },
       headerStyle: styles.AnimePageHeaderStyle,
-      headerTintColor: 'white',
+      headerTintColor: CULORI.alb,
       headerTitleAlign: 'center'
     }}>
       <Tab.Screen name="Home" component={HomePage} />
@@ -203,10 +212,8 @@ export default function Main(){
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
   },
-
-
   itemsCard: {
     flexDirection: 'row',
     padding: 10,
@@ -214,73 +221,60 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: CULORI.cardBordura,
+    backgroundColor: CULORI.cardFundal,
   },
-
-
   imageAnimeCard: {
     width: 90,
     height: 120,
     borderRadius: 8,
-    backgroundColor: '#333',
+    backgroundColor: CULORI.griSeparator,
   },
-
-  
   infoAnimeCard: {
     flex: 1,
     marginLeft: 12,
     justifyContent: 'center',
   },
-
-  
   nameAndFavoriteContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-
   titluAnimeCard: {
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'gold',
+    color: CULORI.auriu,
     marginBottom: 5,
   },
-
   scoreText: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'gold',
+    color: CULORI.auriu,
     marginBottom: 4,
   },
-
   informatiiAnimeCard: {
     fontSize: 13,
     lineHeight: 18,
-    color: '#bbb',
+    color: CULORI.griText,
   },
-
-
   AnimePageHeaderStyle: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
     elevation: 0,
     shadowOpacity: 0,
   },
-
   switchButton: {
     marginRight: 15,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'gold',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: CULORI.auriu,
+    backgroundColor: CULORI.butonFundal,
   },
-
   switchButtonText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: 'gold',
+    color: CULORI.auriu,
   },
 });

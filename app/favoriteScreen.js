@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -11,247 +12,255 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default function FavoritesScreen() {
   const router = useRouter();
-  const [userId, setUserId] = useState(0);
-  const [favorites, setFavorites] = useState([]);
-  const [characters, setCharacters] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const navigation = useNavigation();
 
+  const [userId, setUserId] = useState(0);
+  const [viewType, setViewType] = useState('characters'); 
+  const [allFavorites, setAllFavorites] = useState([]); 
+  const [filteredItems, setFilteredItems] = useState([]); 
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const init = async () => {
-    const uid = await getUserId();
-    if(uid) await loadFavorites(uid);
-    };
+    navigation.setOptions({
+      headerTitle: viewType === 'characters' ? 'Fav Characters' : 'Fav Manga',
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => setViewType(prev => prev === 'characters' ? 'manga' : 'characters')}
+          style={styles.switchButton}
+        >
+          <Text numberOfLines={1} style={styles.switchButtonText}>
+            {viewType === 'characters' ? 'Manga' : 'Chars'}
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, viewType]);
 
-    init();
-    console.log("USERID:", userId);
-  }, [userId]);
-  
-  useFocusEffect(
-    useCallback(() => {
-      loadFavorites(userId);
-    }, [userId])
-  );
-
-  const getUserId = async () => { 
+  const getUserId = async () => {
     try {
       const storedUserId = await AsyncStorage.getItem('userId');
       const parsed = storedUserId ? Number(storedUserId) : null;
-      if(parsed == 0){
-        router.replace('/logInScreen');
-      }
       setUserId(parsed);
-
-      console.log("USERID:", parsed);
       return parsed;
-    } catch (error) { 
-      console.log(error);
+    } catch (error) { console.log(error); }
+  };
+
+  const loadFavorites = async (uid) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const data = await res.json();
+      
+      const favIds = data.favorites.map(f => f.characterId.toString());
+      await fetchAllDetails(favIds);
+    } catch (e) {
+      console.log("Eroare la incarcarea favoritelor din DB:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const fetchAllDetails = async (favIds) => {
+    try {
+      const results = [];
 
-const loadFavorites = async (uid) => {
-  if(!uid) return;
-  try {
-    const res = await fetch(`http://192.168.x.x:3000/favorites?userId=${uid}`);
-    const data = await res.json();
 
-    const favIds = data.favorites.map(f => f.characterId);
+      for (const rawId of favIds) {
+        const isManga = rawId.startsWith('manga_');
+        const idOnly = rawId.replace('manga_', '').replace('char_', '');
+        const url = isManga 
+          ? `https://api.jikan.moe/v4/manga/${idOnly}` 
+          : `https://api.jikan.moe/v4/characters/${idOnly}`;
 
-    setFavorites(favIds);
-    fetchFavorites(favIds);
-  } catch (e) {
-    console.log(e);
-    setLoading(false);
-  }
-};
-const fetchFavorites = async (favIds) => {
-  try {
-    setLoading(true);
+        try {
+          const res = await fetch(url);
+          
 
-    if (!favIds.length) {
-      setCharacters([]);
-      return;
+          if (res.status === 429) {
+            console.log("Jikan API Rate Limit lovit! Asteptam 1 secunda...");
+            await delay(1000); 
+            continue; 
+          }
+
+          const json = await res.json();
+          const item = json.data;
+
+          if (item) {
+            results.push({
+              id: rawId,
+              name: item.name || item.title || 'Unknown',
+              image: item.images?.jpg?.image_url,
+              about: (item.about || item.synopsis || 'No description available.').trim(),
+            });
+          }
+          
+          await delay(350); 
+
+        } catch (fetchError) {
+          console.log(`Eroare fetch pt ${rawId}:`, fetchError);
+        }
+      }
+
+      setAllFavorites(results);
+    } catch (error) { 
+      console.log("Eroare majora detalii:", error); 
     }
+  };
 
-    const results = await Promise.all(
-      favIds.map(async (id) => {
-        const res = await fetch(`https://api.jikan.moe/v4/characters/${id}`);
-        const json = await res.json();
-        return json?.data;
-      })
-    );
+  const toggleFavorite = async (id) => {
+    setAllFavorites(prev => prev.filter(item => item.id !== id));
+    try {
+      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, characterId: id })
+      });
+    } catch (err) { console.log(err); }
+  };
 
-    const validCharacters = results
-      .filter(c => c && c.mal_id)
-      .map(c => ({
-        id: c.mal_id.toString(),
-        name: c.name || 'Unknown',
-        image: c.images?.jpg?.image_url,
-        about: c.about?.trim() || 'No description available.',
-      }));
+  useEffect(() => {
+    const init = async () => {
+      const uid = await getUserId();
+      if (uid) await loadFavorites(uid);
+    };
+    init();
+  }, []);
 
-    setCharacters(validCharacters);
-
-  } catch (e) {
-    console.log(e);
-  } finally {
-    setLoading(false);
-  }
-};
-
-const toggleFavorite = async (id) => {
-  if (!userId) return;
-
-  setFavorites(prev =>
-    prev.includes(id)
-      ? prev.filter(f => f !== id)
-      : [...prev, id]
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) loadFavorites(userId);
+    }, [userId])
   );
 
-  try {
-    const response = await fetch('http://192.168.x.x:3000/toggle-favorite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: Number(userId),
-        characterId: id.toString()
-      })
+  useEffect(() => {
+    const filtered = allFavorites.filter(item => {
+      if (viewType === 'manga') return item.id.startsWith('manga_');
+      return !item.id.startsWith('manga_');
     });
-
-    await loadFavorites(userId);
-
-    
-
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-
-  if (loading) {
-    return (
-      <View style={ styles.background }>
-        <ActivityIndicator size="large" color="gold" />
-      </View>
-    );
-  }
+    setFilteredItems(filtered);
+  }, [viewType, allFavorites]);
 
   return (
     <View style={styles.background}>
-      <View>
-        <Text style={styles.headerTitle}>Favorite Characters</Text>
-      </View>
-      <FlatList 
-        data={characters} 
+      <FlatList
+        data={filteredItems}
         keyExtractor={(item) => item.id}
-        onRefresh={() => loadFavorites()}
+        contentContainerStyle={{ paddingTop: 10 }}
+        
         refreshing={loading}
+        onRefresh={() => loadFavorites(userId)} 
+
+        ListEmptyComponent={
+          !loading && <Text style={styles.emptyText}>No favorite {viewType} found.</Text>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.itemsCard} 
-            onPress={() => {
-              router.push({
-                pathname: '/DetailsScreen',
-                params: { 
-                  name: item.name, 
-                  image: item.image, 
-                  about: item.about 
-                }
-              });
-            }}
+            style={styles.itemsCard}
+            onPress={() => router.push({ pathname: '/DetailsScreen', params: item })}
           >
-            <Image 
-              source={{ uri: item.image }} 
-              style={styles.imageAnimeCard} 
-            />
+            <Image source={{ uri: item.image }} style={styles.imageAnimeCard} />
             <View style={styles.infoAnimeCard}>
-              <View style={ styles.nameAndFavoriteContainer }>
-                <Text style={styles.titluAnimeCard}>{item.name}</Text>
+              <View style={styles.nameAndFavoriteContainer}>
+                <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
                 <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                  <Ionicons name={favorites.includes(item.id) ? "heart" : "heart-outline"} size={30} color={favorites.includes(item.id) ? "gold" : "#ccc"}/>
+                  <Ionicons name="heart" size={28} color="gold" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.informatiiAnimeCard} numberOfLines={3}>
-                {item.about}
-              </Text>
+              <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>
             </View>
           </TouchableOpacity>
         )}
       />
-      <TouchableOpacity onPress={() => {
-        AsyncStorage.clear();
-        router.replace('/');
-      }} style={{ alignSelf: 'center', marginVertical: 20 }}>
-        <Text>Log Out</Text>
-      </TouchableOpacity>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  background: { 
-    flex: 1, 
-    backgroundColor: '#1E1E1E', 
+  background: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 15,
-    marginTop: 50,
+
+  backgroundCentered: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+
+
   itemsCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    margin: 6,
-    alignSelf: 'center',
     flexDirection: 'row',
     padding: 10,
+    marginHorizontal: 12,
+    marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
+
+
   imageAnimeCard: {
-    margin: 5,
-    marginRight: 10,
-    height: 120,
     width: 90,
+    height: 120,
     borderRadius: 8,
     backgroundColor: '#333',
   },
+
+
   infoAnimeCard: {
     flex: 1,
+    marginLeft: 12,
     justifyContent: 'center',
   },
-  titluAnimeCard: {
-    color: 'gold',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 5
-  },
-  informatiiAnimeCard: {
-    color: '#bbb',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  AnimePageHeaderStyle: {
-    backgroundColor: '#1E1E1E',
-  },
+
   nameAndFavoriteContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  favoriteButtonAnimeCard: {
-    borderColor: 'gold',
+
+  titluAnimeCard: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'gold',
+    marginBottom: 5,
+  },
+
+  informatiiAnimeCard: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#bbb',
+  },
+
+
+  emptyText: {
+    color: 'gray',
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+  },
+
+  switchButton: {
+    marginRight: 15,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 20,
-    width: 30,
-    height: 30,
+    borderColor: 'gold',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+
+  switchButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'gold',
   },
 });

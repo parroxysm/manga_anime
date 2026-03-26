@@ -1,10 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { use, useCallback, useEffect, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,103 +14,133 @@ import {
   View
 } from 'react-native';
 import FavoritesScreen from './favoriteScreen';
+import MangaScreen from './mangaScreen.js';
+import SearchScreen from './SearchScreen';
 
 const Tab = createBottomTabNavigator();
 
 const HomePage = () => {
   const router = useRouter();
+  const navigation = useNavigation();
+  
+  const [viewType, setViewType] = useState('characters'); 
   const [userId, setUserId] = useState(0);
-  const [characters, setCharacters] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
     const init = async () => {
-    await getUserId();
-    await getInfo();
+      const uid = await getUserId();
+      if (uid) {
+        await loadFavorites(uid);
+        await getInfo('characters', uid);
+      }
     };
-
     init();
-    console.log("USERID:", userId);
   }, []);
 
-  const navigation = useNavigation();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) loadFavorites(userId);
+    }, [userId])
+  );
+
+
   useEffect(() => {
-    navigation.addListener('tabPress', () => {
-      getInfo();
+    navigation.setOptions({
+      headerTitle: viewType === 'characters' ? 'Top Characters' : 'Top Manga',
+      headerRight: () => (
+        <TouchableOpacity 
+          onPress={() => setViewType(prev => prev === 'characters' ? 'manga' : 'characters')}
+          style={styles.switchButton}
+        >
+          <Text style={styles.switchButtonText}>
+            {viewType === 'characters' ? 'Manga' : 'Chars'}
+          </Text>
+        </TouchableOpacity>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, viewType]);
+
+
+  useEffect(() => {
+    getInfo(viewType);
+  }, [viewType]);
 
   const getUserId = async () => { 
     try {
       const storedUserId = await AsyncStorage.getItem('userId');
       const parsed = storedUserId ? Number(storedUserId) : null;
-      if(parsed == 0){
-        router.replace('/logInScreen');
-      }
+      if (!parsed) router.replace('/logInScreen');
       setUserId(parsed);
-
-      console.log("USERID:", parsed);
       return parsed;
-    } catch (error) { 
-      console.log(error);
-    }
+    } catch (error) { console.log(error); }
   };
 
-const toggleFavorite = async (id) => {
-  if (!userId) return;
+  const loadFavorites = async (uid) => {
+    try {
+      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const data = await res.json();
+      const favIds = data.favorites.map(f => f.characterId.toString());
+      setFavorites(favIds);
+    } catch (e) { console.log(e); }
+  };
 
-  setFavorites(prev =>
-    prev.includes(id)
-      ? prev.filter(f => f !== id)
-      : [...prev, id]
-  );
-
+  const getInfo = async (type) => {
   try {
-    const response = await fetch('http://192.168.x.x:3000/toggle-favorite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: Number(userId),
-        characterId: id.toString()
-      })
-    });
+    setLoading(true);
+    const randomPage = Math.floor(Math.random() * 20) + 1;
+    const URL = type === 'characters' 
+      ? `https://api.jikan.moe/v4/top/characters?page=${randomPage}`
+      : `https://api.jikan.moe/v4/top/manga?page=${randomPage}`;
 
-    const data = await response.json();
-    console.log("SERVER:", data);
-
+    const response = await fetch(URL);
+    const json = await response.json();
     
+    if (json.data) {
+      const mappedData = json.data.map((item) => ({
+        id: type === 'manga' ? `manga_${item.mal_id}` : `char_${item.mal_id}`,
+        name: item.name || item.title || 'Unknown', 
+        image: item.images?.jpg?.image_url,
+        about: (item.about || item.synopsis || 'No description available.').trim(),
+        score: item.score || null
+      }));
 
-  } catch (err) {
-    console.log(err);
+      const uniqueItems = mappedData.filter((value, index, self) =>
+        index === self.findIndex((t) => t.id === value.id)
+      );
+
+      setItems(uniqueItems);
+    }
+  } catch (error) {
+    console.error("Eroare la API:", error);
+  } finally {
+    setLoading(false);
   }
 };
 
+  const toggleFavorite = async (id) => {
+  if (!userId) return;
 
-  const getInfo = async () => {
-    try {
-      setLoading(true);
-      const randomPage = Math.floor(Math.random() * 50) + 1;
-      const URL = `https://api.jikan.moe/v4/top/characters?page=${randomPage}`;
+  setFavorites(prev => 
+    prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+  );
 
-      const response = await fetch(URL);
-      const json = await response.json();
-      
-      const mappedCharacters = (Array.isArray(json.data) ? json.data : []).map((character) => ({
-        id: character.mal_id.toString(),
-        name: character.name || 'Unknown',
-        image: character.images?.jpg?.image_url || 'https://placehold.co/300x400?text=No+Image',
-        about: character.about?.trim() || 'No description available.',
-      }));
-
-      const shuffled = mappedCharacters.sort(() => 0.5 - Math.random());
-      setCharacters(shuffled);
-    } catch (error) {
-      console.error("Eroare la API:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    await fetch('http://192.168.1.133:3000/toggle-favorite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userId: Number(userId), 
+        characterId: id
+      })
+    });
+  } catch (err) {
+    console.log("Eroare la salvare:", err);
+  }
+};
 
   if (loading) {
     return (
@@ -124,38 +153,29 @@ const toggleFavorite = async (id) => {
   return (
     <View style={styles.background}>
       <FlatList 
-        data={characters} 
+        data={items} 
         keyExtractor={(item) => item.id}
-        onRefresh={() => getInfo()} 
+        onRefresh={() => getInfo(viewType)} 
         refreshing={loading}
         renderItem={({ item }) => (
           <TouchableOpacity 
             style={styles.itemsCard} 
-            onPress={() => {
-              router.push({
-                pathname: '/DetailsScreen',
-                params: { 
-                  name: item.name, 
-                  image: item.image, 
-                  about: item.about 
-                }
-              });
-            }}
+            onPress={() => router.push({ pathname: '/DetailsScreen', params: { name: item.name, image: item.image, about: item.about } })}
           >
-            <Image 
-              source={{ uri: item.image }} 
-              style={styles.imageAnimeCard} 
-            />
+            <Image source={{ uri: item.image }} style={styles.imageAnimeCard} />
             <View style={styles.infoAnimeCard}>
-              <View style={ styles.nameAndFavoriteContainer }>
-                <Text style={styles.titluAnimeCard}>{item.name}</Text>
-                <TouchableOpacity onPress={() => {toggleFavorite(item.id)}}>
-                  <Ionicons name={favorites.includes(item.id) ? "heart" : "heart-outline"} size={30} color={favorites.includes(item.id) ? "gold" : "#ccc"}/>
+              <View style={styles.nameAndFavoriteContainer}>
+                <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
+                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                  <Ionicons 
+                    name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
+                    size={28} 
+                    color={favorites.includes(item.id) ? "gold" : "#ccc"} 
+                  />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.informatiiAnimeCard} numberOfLines={3}>
-                {item.about}
-              </Text>
+              {item.score && <Text style={styles.scoreText}>⭐ {item.score}</Text>}
+              <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -166,77 +186,101 @@ const toggleFavorite = async (id) => {
 
 export default function Main(){
   return(
-  <Tab.Navigator screenOptions={{ headerShown: false, tabBarStyle: { backgroundColor: '#1E1E1E', borderColor: '#1E1E1E' } }}>
-    <Tab.Screen 
-      name="Home" 
-      options={{headerShown: true, headerTitle: 'Anime Characters', headerTitleAlign: 'center', headerTintColor: 'white', headerStyle: styles.AnimePageHeaderStyle}}
-      component={HomePage} />
-    <Tab.Screen name="test1" component={FavoritesScreen} />
-    <Tab.Screen name="test2" component={FavoritesScreen} />
-    <Tab.Screen name="Profile" component={FavoritesScreen} />
-  </Tab.Navigator>
+    <Tab.Navigator screenOptions={{ 
+      headerShown: true, 
+      tabBarStyle: { backgroundColor: '#1E1E1E', borderTopColor: '#333' },
+      headerStyle: styles.AnimePageHeaderStyle,
+      headerTintColor: 'white',
+      headerTitleAlign: 'center'
+    }}>
+      <Tab.Screen name="Home" component={HomePage} />
+      <Tab.Screen name="Search" component={SearchScreen} />
+      <Tab.Screen name="Favorites" component={FavoritesScreen} />
+    </Tab.Navigator>
   );
 };
 
 const styles = StyleSheet.create({
-  background: { 
-    flex: 1, 
-    backgroundColor: '#1E1E1E', 
+  background: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 15,
-    marginTop: 50,
-  },
+
+
   itemsCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginLeft: 12,
-    marginRight: 12,
-    marginBottom: 12,
-    alignSelf: 'center',
     flexDirection: 'row',
     padding: 10,
+    marginHorizontal: 12,
+    marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
+
+
   imageAnimeCard: {
-    height: 120,
     width: 90,
+    height: 120,
     borderRadius: 8,
     backgroundColor: '#333',
   },
+
+  
   infoAnimeCard: {
     flex: 1,
     marginLeft: 12,
     justifyContent: 'center',
   },
-  titluAnimeCard: {
-    color: 'gold',
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 5
-  },
-  informatiiAnimeCard: {
-    color: '#bbb',
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  AnimePageHeaderStyle: {
-    backgroundColor: '#1E1E1E',
-  },
+
+  
   nameAndFavoriteContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  favoriteButtonAnimeCard: {
-    borderColor: 'gold',
+
+  titluAnimeCard: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'gold',
+    marginBottom: 5,
+  },
+
+  scoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'gold',
+    marginBottom: 4,
+  },
+
+  informatiiAnimeCard: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#bbb',
+  },
+
+
+  AnimePageHeaderStyle: {
+    backgroundColor: '#1E1E1E',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  switchButton: {
+    marginRight: 15,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderRadius: 20,
-    width: 30,
-    height: 30,
-  }
+    borderColor: 'gold',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+
+  switchButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'gold',
+  },
 });

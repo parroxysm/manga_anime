@@ -15,6 +15,20 @@ import {
   Keyboard
 } from 'react-native';
 
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  griSters: '#888',
+  griInput: '#2A2A2A',
+  griSeparator: '#333',
+  griBordura: '#444',
+  cardBordura: 'rgba(255, 255, 255, 0.1)',
+  cardFundal: 'rgba(255, 255, 255, 0.05)',
+  toggleActiv: 'rgba(255, 215, 0, 0.15)'
+};
+
 export default function SearchScreen() {
   const router = useRouter();
   
@@ -67,7 +81,6 @@ export default function SearchScreen() {
     setHasSearched(true);
 
     try {
-
       const endpoint = viewType === 'characters'
         ? `https://api.jikan.moe/v4/characters?q=${searchQuery}&limit=20`
         : `https://api.jikan.moe/v4/manga?q=${searchQuery}&limit=20`;
@@ -85,7 +98,7 @@ export default function SearchScreen() {
 
       setResults(mappedData);
     } catch (error) {
-      console.error("Eroare la căutare API:", error);
+      console.error("Eroare API:", error);
     } finally {
       setLoading(false);
     }
@@ -105,20 +118,18 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.background}>
-      
-      {/* Zona de Căutare (Search Bar & Toggle) */}
       <View style={styles.searchContainer}>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.searchInput}
             placeholder={`Search ${viewType}...`}
-            placeholderTextColor="#888"
+            placeholderTextColor={CULORI.griSters}
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleSearch} 
           />
           <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Ionicons name="search" size={24} color="#1E1E1E" />
+            <Ionicons name="search" size={24} color={CULORI.fundal} />
           </TouchableOpacity>
         </View>
 
@@ -141,7 +152,7 @@ export default function SearchScreen() {
 
       {loading ? (
         <View style={styles.centeredView}>
-          <ActivityIndicator size="large" color="gold" />
+          <ActivityIndicator size="large" color={CULORI.auriu} />
         </View>
       ) : (
         <FlatList
@@ -166,11 +177,11 @@ export default function SearchScreen() {
                     <Ionicons 
                       name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
                       size={28} 
-                      color={favorites.includes(item.id) ? "gold" : "#ccc"} 
+                      color={favorites.includes(item.id) ? CULORI.auriu : "#ccc"} 
                     />
                   </TouchableOpacity>
                 </View>
-                {item.score && <Text style={{color: 'gold', fontSize: 12, marginBottom: 4}}>⭐ {item.score}</Text>}
+                {item.score && <Text style={styles.scoreText}>⭐ {item.score}</Text>}
                 <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>
               </View>
             </TouchableOpacity>
@@ -182,16 +193,15 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1, backgroundColor: '#1E1E1E' },
+  background: { flex: 1, backgroundColor: CULORI.fundal },
   centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  
   searchContainer: {
     paddingHorizontal: 15,
     paddingTop: 15,
     paddingBottom: 10,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: CULORI.griSeparator,
   },
   inputRow: {
     flexDirection: 'row',
@@ -201,25 +211,23 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 45,
-    backgroundColor: '#2A2A2A',
+    backgroundColor: CULORI.griInput,
     borderRadius: 8,
     paddingHorizontal: 15,
-    color: 'white',
+    color: CULORI.alb,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: CULORI.griBordura,
   },
   searchButton: {
     marginLeft: 10,
-    backgroundColor: 'gold',
+    backgroundColor: CULORI.auriu,
     height: 45,
     width: 45,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
-
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -230,22 +238,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: CULORI.griBordura,
     marginHorizontal: 5,
   },
   toggleButtonActive: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    borderColor: 'gold',
+    backgroundColor: CULORI.toggleActiv,
+    borderColor: CULORI.auriu,
   },
   toggleText: {
-    color: '#888',
+    color: CULORI.griSters,
     fontWeight: 'bold',
   },
   toggleTextActive: {
-    color: 'gold',
+    color: CULORI.auriu,
   },
-
-
   itemsCard: {
     flexDirection: 'row',
     padding: 10,
@@ -253,13 +259,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: CULORI.cardBordura,
+    backgroundColor: CULORI.cardFundal,
   },
-  imageAnimeCard: { width: 90, height: 120, borderRadius: 8, backgroundColor: '#333' },
+  imageAnimeCard: { width: 90, height: 120, borderRadius: 8, backgroundColor: CULORI.griSeparator },
   infoAnimeCard: { flex: 1, marginLeft: 12, justifyContent: 'center' },
   nameAndFavoriteContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titluAnimeCard: { flex: 1, fontSize: 18, fontWeight: 'bold', color: 'gold', marginBottom: 5 },
-  informatiiAnimeCard: { fontSize: 13, lineHeight: 18, color: '#bbb' },
+  titluAnimeCard: { flex: 1, fontSize: 18, fontWeight: 'bold', color: CULORI.auriu, marginBottom: 5 },
+  scoreText: { color: CULORI.auriu, fontSize: 12, marginBottom: 4 },
+  informatiiAnimeCard: { fontSize: 13, lineHeight: 18, color: CULORI.griText },
   emptyText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
 });

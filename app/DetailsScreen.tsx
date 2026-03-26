@@ -2,50 +2,71 @@ import { useLocalSearchParams } from "expo-router";
 import React from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 
-export default function DetailsScreen(){
-    const item = useLocalSearchParams();
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  cardBordura: 'rgba(255, 255, 255, 0.1)'
+};
 
-    return (
-        <View style={styles.background}>
-            <ScrollView>
-                <Image source={{ uri: item.image as string }} style={styles.imageAnimeCard} />
-                <View style={styles.content}>
-                    <Text style={styles.nameAnimeCard}>{item.name}</Text>
-                    <Text style={styles.aboutAnimeCard}>{item.about}</Text>
-                </View>
-            </ScrollView>
+export default function DetailsScreen() {
+  const item = useLocalSearchParams();
+
+  return (
+    <View style={styles.background}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Image 
+          source={{ uri: item.image as string }} 
+          style={styles.imageAnimeCard} 
+        />
+        <View style={styles.content}>
+          <Text style={styles.nameAnimeCard}>{item.name}</Text>
+          <View style={styles.separator} />
+          <Text style={styles.aboutAnimeCard}>{item.about}</Text>
         </View>
-    );
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   background: { 
     flex: 1, 
-    backgroundColor: '#1E1E1E'
-},
+    backgroundColor: CULORI.fundal
+  },
   imageAnimeCard: {
-    borderRadius: 27,
-    marginTop: "10%",
+    borderRadius: 20,
+    marginTop: 20,
     alignSelf: 'center',
-    width: '90%', 
-    height: 350, 
-    resizeMode: 'cover' 
-},
+    width: '92%', 
+    height: 400, 
+    resizeMode: 'cover',
+    borderWidth: 1,
+    borderColor: CULORI.cardBordura
+  },
   content: { 
     padding: 20 
-},
+  },
   nameAnimeCard: { 
-    color: 'white',
-    alignSelf: 'center', 
-    fontSize: 40, 
+    color: CULORI.auriu,
+    textAlign: 'center', 
+    fontSize: 32, 
     fontWeight: 'bold', 
-    padding: 5
-},
+    marginBottom: 10
+  },
+  separator: {
+    height: 2,
+    backgroundColor: CULORI.auriu,
+    width: 60,
+    alignSelf: 'center',
+    marginBottom: 20,
+    borderRadius: 1
+  },
   aboutAnimeCard: {
-    alignSelf: 'center', 
-    color: 'white', 
-    fontSize: 18, 
-    lineHeight: 22,
-    padding: 5
-}
+    color: CULORI.alb, 
+    fontSize: 16, 
+    lineHeight: 24,
+    textAlign: 'justify'
+  }
 });

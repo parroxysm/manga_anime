@@ -13,6 +13,17 @@ import {
   View
 } from 'react-native';
 
+const CULORI = {
+  fundal: '#1E1E1E',
+  auriu: 'gold',
+  alb: 'white',
+  griText: '#bbb',
+  griInactiv: '#ccc',
+  griSeparator: '#333',
+  cardBordura: 'rgba(255, 255, 255, 0.1)',
+  cardFundal: 'rgba(255, 255, 255, 0.05)'
+};
+
 export default function MangaScreen() {
   const router = useRouter();
   const [userId, setUserId] = useState(0);
@@ -26,9 +37,7 @@ export default function MangaScreen() {
       const parsed = storedUserId ? Number(storedUserId) : null;
       setUserId(parsed);
       return parsed;
-    } catch (error) {
-      console.log(error);
-    }
+    } catch (error) { console.log(error); }
   };
 
   const loadFavorites = async (uid) => {
@@ -37,13 +46,11 @@ export default function MangaScreen() {
       const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
       const data = await res.json();
       const favIds = data.favorites
-      .map(f => f.characterId.toString())
-      .filter(id => idStartsWith('manga_'))
-      .map(id => id.replace('manga_', ''));
+        .map(f => f.characterId.toString())
+        .filter(id => id.startsWith('manga_'))
+        .map(id => id.replace('manga_', ''));
       setFavorites(favIds);
-    } catch (e) {
-      console.log(e);
-    }
+    } catch (e) { console.log(e); }
   };
 
   const fetchManga = async () => {
@@ -62,16 +69,12 @@ export default function MangaScreen() {
       }));
 
       setMangaList(mappedManga);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.log(error); } 
+    finally { setLoading(false); }
   };
 
   const toggleFavorite = async (id) => {
     if (!userId) return;
-
     setFavorites(prev =>
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
@@ -85,9 +88,7 @@ export default function MangaScreen() {
           characterId: `manga_${id}`
         })
       });
-    } catch (err) {
-      console.log(err);
-    }
+    } catch (err) { console.log(err); }
   };
 
   useEffect(() => {
@@ -108,7 +109,7 @@ export default function MangaScreen() {
   if (loading) {
     return (
       <View style={styles.backgroundCentered}>
-        <ActivityIndicator size="large" color="gold" />
+        <ActivityIndicator size="large" color={CULORI.auriu} />
       </View>
     );
   }
@@ -124,12 +125,10 @@ export default function MangaScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.itemsCard}
-            onPress={() => {
-              router.push({
-                pathname: '/DetailsScreen',
-                params: { name: item.name, image: item.image, about: item.about }
-              });
-            }}
+            onPress={() => router.push({
+              pathname: '/DetailsScreen',
+              params: { name: item.name, image: item.image, about: item.about }
+            })}
           >
             <Image source={{ uri: item.image }} style={styles.imageMangaCard} />
             <View style={styles.infoMangaCard}>
@@ -139,7 +138,7 @@ export default function MangaScreen() {
                   <Ionicons 
                     name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
                     size={28} 
-                    color={favorites.includes(item.id) ? "gold" : "#ccc"} 
+                    color={favorites.includes(item.id) ? CULORI.auriu : CULORI.griInactiv} 
                   />
                 </TouchableOpacity>
               </View>
@@ -158,29 +157,29 @@ export default function MangaScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
   },
   backgroundCentered: {
     flex: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: CULORI.fundal,
     justifyContent: 'center',
     alignItems: 'center'
   },
   itemsCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: CULORI.cardFundal,
     marginHorizontal: 12,
     marginBottom: 12,
     flexDirection: 'row',
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: CULORI.cardBordura,
   },
   imageMangaCard: {
     height: 120,
     width: 90,
     borderRadius: 8,
-    backgroundColor: '#333',
+    backgroundColor: CULORI.griSeparator,
   },
   infoMangaCard: {
     flex: 1,
@@ -193,20 +192,20 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   titluMangaCard: {
-    color: 'gold',
+    color: CULORI.auriu,
     fontWeight: 'bold',
     fontSize: 17,
     flex: 1,
     marginRight: 5
   },
   scoreText: {
-    color: '#FFD700',
+    color: CULORI.auriu,
     fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 4
   },
   informatiiMangaCard: {
-    color: '#bbb',
+    color: CULORI.griText,
     fontSize: 13,
     lineHeight: 18,
   },

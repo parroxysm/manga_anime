@@ -19,7 +19,7 @@ export default function LoginScreen() {
     console.log('Attempting to log in with:', username, password);
     try {
       console.log('Sending login request to server...');
-      const response = await fetch('http://192.168.0.103:3000/login', {
+      const response = await fetch('http://192.168.1.133:3000/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -70,7 +70,7 @@ export default function LoginScreen() {
       </View>
       {/* Sign Up container */}
       <View style={styles.containerSignUp}>
-        <Text style={{color: '#e6e6e6',}}>Don't have an account?</Text>
+        <Text style={{color: '#e6e6e6',}}>Dont have an account?</Text>
         <TouchableOpacity onPress={() => SignUp()}>
           <Text style={styles.signUpText}>Sign Up</Text>
         </TouchableOpacity>

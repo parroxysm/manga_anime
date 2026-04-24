@@ -43,7 +43,7 @@ export default function MangaScreen() {
   const loadFavorites = async (uid) => {
     if (!uid) return;
     try {
-      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const res = await fetch(`{IP}/favorites?userId=${uid}`);
       const data = await res.json();
       const favIds = data.favorites
         .map(f => f.characterId.toString())
@@ -80,7 +80,7 @@ export default function MangaScreen() {
     );
 
     try {
-      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+      await fetch(`${IP}/toggle-favorite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

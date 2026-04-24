@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import Main from './App';
+import IP from '../var/IP';
 
 export default function App() {
 const [isLoggedIn, setIsLoggedIn] = useState(null);

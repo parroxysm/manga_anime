@@ -16,6 +16,7 @@ import {
 import FavoritesScreen from './favoriteScreen';
 import MangaScreen from './mangaScreen.js';
 import SearchScreen from './SearchScreen';
+import IP from '../var/IP';
 
 const Tab = createBottomTabNavigator();
 
@@ -90,7 +91,7 @@ const HomePage = () => {
 
   const loadFavorites = async (uid) => {
     try {
-      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const res = await fetch(`${IP}/favorites?userId=${uid}`);
       const data = await res.json();
       const favIds = data.favorites.map(f => f.characterId.toString());
       setFavorites(favIds);
@@ -138,7 +139,7 @@ const HomePage = () => {
     );
 
     try {
-      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+      await fetch(`${IP}/toggle-favorite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import IP from '../var/IP';
 
 const CULORI = {
   fundal: '#1E1E1E',
@@ -114,7 +115,7 @@ export default function FavoritesScreen() {
   const toggleFavorite = async (id) => {
     setAllFavorites(prev => prev.filter(item => item.id !== id));
     try {
-      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+      await fetch(`${IP}/toggle-favorite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, characterId: id })

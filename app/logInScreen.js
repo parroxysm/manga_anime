@@ -2,6 +2,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import IP from '../var/IP';
 
 const CULORI = {
   fundal: '#1E1E1E',

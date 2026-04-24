@@ -14,6 +14,7 @@ import {
   View,
   Keyboard
 } from 'react-native';
+import IP from '../var/IP';
 
 const CULORI = {
   fundal: '#1E1E1E',
@@ -66,7 +67,7 @@ export default function SearchScreen() {
 
   const loadFavorites = async (uid) => {
     try {
-      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const res = await fetch(`${IP}/favorites?userId=${uid}`);
       const data = await res.json();
       const favIds = data.favorites.map(f => f.characterId.toString());
       setFavorites(favIds);
@@ -108,7 +109,7 @@ export default function SearchScreen() {
     if (!userId) return;
     setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
     try {
-      await fetch('http://192.168.1.133:3000/toggle-favorite', {
+      await fetch(`${IP}/toggle-favorite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, characterId: id })

@@ -12,7 +12,7 @@ app.use(express.json());
 /* =========================
    REGISTER
 ========================= */
-app.post('/register', async (req, res) => {
+app.post('/register', async (req, res) => { 
   try {
     const { username, password, confirmpassword } = req.body;
 
@@ -53,11 +53,18 @@ app.post('/register', async (req, res) => {
 /* =========================
    LOGIN (IMPORTANT)
 ========================= */
+/* =========================
+   LOGIN (DEBUG MODE)
+========================= */
 app.post('/login', async (req, res) => {
+  console.log("=== INCERCARE DE LOGARE ===");
+  console.log("Date primite de la telefon:", req.body);
+
   try {
     const { username, password } = req.body;
 
     if (!username || !password) {
+      console.log("Eroare: Userul sau parola sunt goale!");
       return res.json({ success: false });
     }
 
@@ -66,22 +73,25 @@ app.post('/login', async (req, res) => {
     });
 
     if (!user) {
+      console.log("Eroare: Username-ul NU exista in baza de date:", `"${username}"`);
       return res.json({ success: false });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
+      console.log("Eroare: Parola este GRESITA pentru userul:", username);
       return res.json({ success: false });
     }
 
+    console.log("LOGARE REUSITA! User ID:", user.id);
     return res.json({
       success: true,
       userId: user.id
     });
 
   } catch (err) {
-    console.log(err);
+    console.log("Eroare critica la login:", err);
     return res.status(500).json({ success: false });
   }
 });
@@ -154,7 +164,11 @@ app.get('/favorites', async (req, res) => {
   try {
     const userId = Number(req.query.userId);
 
-    const favorites = await prisma.FavoriteCharacter.findMany({
+    if (!userId) {
+      return res.json({ favorites: [] });
+    }
+
+    const favorites = await prisma.favoriteCharacter.findMany({ 
       where: { userId }
     });
 

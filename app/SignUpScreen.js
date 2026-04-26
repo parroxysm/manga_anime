@@ -1,7 +1,6 @@
 import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import IP from '../var/IP';
 
 const CULORI = {
@@ -15,40 +14,55 @@ const CULORI = {
   butonText: '#000'
 };
 
-export default function LoginScreen() {
+export default function SignUpScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [checkExisted, setCheckExisted] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
+    // Validări simple pe telefon
+    if (!username || !password || !confirmPassword) {
+      setErrorMessage("Please fill in all fields.");
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
     try {
-      const response = await fetch(`${IP}/login`, {
+      const response = await fetch(`${IP}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-        body: JSON.stringify({ username: username.trim(), password })
+        body: JSON.stringify({ 
+          username: username.trim(), 
+          password: password,
+          confirmpassword: confirmPassword 
+        })
       });
       
       const data = await response.json();
 
       if (data.success) {
-        await AsyncStorage.setItem("userId", data.userId.toString());
-        router.replace('/App');
+        // Dacă a mers, îl trimitem înapoi la Login
+        router.replace('/logInScreen');
       } else {
-        setCheckExisted(false);
+        setErrorMessage("Username already exists or registration failed.");
       }
     } catch (error) {
       console.log(error);
-      setCheckExisted(false);
+      setErrorMessage("Network error. Please try again.");
     } 
   };
 
   return (
     <View style={styles.container}>
-      {/* Log In container */}
-      <View style={styles.containerLogIn}>
-        <Text style={styles.logInHeader}>Welcome</Text>
-        <Text style={styles.logInSubHeader}>Log in to your account</Text>
+      <View style={styles.containerSignUpBox}>
+        <Text style={styles.signUpHeader}>Create Account</Text>
+        <Text style={styles.signUpSubHeader}>Join us and save your favorites</Text>
         
         <TextInput 
           style={styles.input}
@@ -68,23 +82,29 @@ export default function LoginScreen() {
           secureTextEntry
         />
 
-        {checkExisted === false && (
-          <Text style={styles.errorText}>
-            Invalid username or password
-          </Text>
+        <TextInput
+          style={styles.input}
+          placeholder='Confirm Password'
+          placeholderTextColor="#666"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+
+        {errorMessage !== '' && (
+          <Text style={styles.errorText}>{errorMessage}</Text>
         )}
 
-        <TouchableOpacity style={styles.logInButton} onPress={handleLogin}>
-          <Text style={styles.logInButtonText}>Log In</Text>
+        <TouchableOpacity style={styles.signUpButton} onPress={handleRegister}>
+          <Text style={styles.signUpButtonText}>Register</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Sign Up container */}
-      <View style={styles.containerSignUp}>
-        <Text style={{color: CULORI.griText}}>Don't have an account?</Text>
-          <TouchableOpacity onPress={() => router.push('/SignUpScreen')}>
-            <Text style={styles.signUpText}>Sign Up</Text>
-          </TouchableOpacity>
+      <View style={styles.containerLogInSwitch}>
+        <Text style={{color: CULORI.griText}}>Already have an account?</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.logInText}>Log In</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -97,7 +117,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  containerLogIn: {
+  containerSignUpBox: {
     width: '85%',
     padding: 25,
     borderWidth: 1,
@@ -105,13 +125,13 @@ const styles = StyleSheet.create({
     borderColor: CULORI.cardBordura,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
-  logInHeader: {
+  signUpHeader: {
     fontSize: 32,
     color: CULORI.auriu,
     alignSelf: 'center',
     fontWeight: 'bold',
   },
-  logInSubHeader: {
+  signUpSubHeader: {
     fontSize: 14,
     color: CULORI.griText,
     alignSelf: 'center',
@@ -132,8 +152,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 10,
     fontSize: 13,
+    textAlign: 'center',
   },
-  logInButton: {
+  signUpButton: {
     backgroundColor: CULORI.auriu,
     height: 55,
     borderRadius: 12,
@@ -141,18 +162,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  logInButtonText: {
+  signUpButtonText: {
     color: CULORI.butonText,
     fontSize: 18,
     fontWeight: 'bold',
   },
-  containerSignUp: {
+  containerLogInSwitch: {
     position: 'absolute',
     bottom: 40,
     flexDirection: 'row',
     gap: 5,
   },
-  signUpText: {
+  logInText: {
     color: CULORI.auriu,
     fontWeight: 'bold',
     textDecorationLine: 'underline',

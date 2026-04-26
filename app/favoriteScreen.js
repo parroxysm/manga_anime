@@ -67,7 +67,7 @@ export default function FavoritesScreen() {
     if (!uid) return;
     try {
       setLoading(true);
-      const res = await fetch(`http://192.168.1.133:3000/favorites?userId=${uid}`);
+      const res = await fetch(`${IP}/favorites?userId=${uid}`);
       const data = await res.json();
       
       const favIds = data.favorites.map(f => f.characterId.toString());
@@ -164,7 +164,11 @@ export default function FavoritesScreen() {
             <View style={styles.infoAnimeCard}>
               <View style={styles.nameAndFavoriteContainer}>
                 <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
-                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                <TouchableOpacity 
+                  onPress={() => toggleFavorite(item.id)}
+                  disabled={loading} // Blochează clicul cât timp se face refresh
+                  style={{ opacity: loading ? 0.5 : 1 }} // Îl face puțin transparent când e blocat
+                >
                   <Ionicons name="heart" size={28} color={CULORI.auriu} />
                 </TouchableOpacity>
               </View>

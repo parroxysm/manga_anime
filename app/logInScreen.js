@@ -3,17 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import IP from '../var/IP';
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griInput: '#2A2A2A',
-  rosuEroare: '#ff4444',
-  cardBordura: '#414141',
-  butonText: '#000'
-};
+import {CULORI} from '../var/Culori';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');

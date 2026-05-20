@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,23 +12,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Keyboard
+  Keyboard, 
+  StatusBar
 } from 'react-native';
 import IP from '../var/IP';
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griSters: '#888',
-  griInput: '#2A2A2A',
-  griSeparator: '#333',
-  griBordura: '#444',
-  cardBordura: 'rgba(255, 255, 255, 0.1)',
-  cardFundal: 'rgba(255, 255, 255, 0.05)',
-  toggleActiv: 'rgba(255, 215, 0, 0.15)'
-};
+import { CULORI } from '../var/Culori';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -89,17 +77,26 @@ export default function SearchScreen() {
       const response = await fetch(endpoint);
       const json = await response.json();
 
-      const mappedData = (Array.isArray(json.data) ? json.data : []).map((item) => ({
-        id: viewType === 'manga' ? `manga_${item.mal_id}` : item.mal_id.toString(),
-        name: item.name || item.title || 'Unknown',
-        image: item.images?.jpg?.image_url,
-        about: (item.about || item.synopsis || 'No description available.').trim(),
-        score: item.score || null
-      }));
+      const mappedData = (Array.isArray(json.data) ? json.data : []).map((item) => {
+        // Rezolvarea pentru personaje: alocăm totalItems doar dacă e manga/anime
+        let totalVal = null;
+        if (viewType === 'manga') totalVal = item.chapters;
+        else if (viewType === 'anime') totalVal = item.episodes; 
+
+        return {
+          id: viewType === 'manga' ? `manga_${item.mal_id}` : item.mal_id.toString(),
+          name: item.name || item.title || 'Unknown',
+          image: item.images?.jpg?.image_url,
+          about: (item.about || item.synopsis || 'No description available.').trim(),
+          score: item.score || null,
+          totalItems: totalVal,
+          kind: viewType // Trimitem tipul ca pagina de detalii să știe că e personaj
+        };
+      });
 
       setResults(mappedData);
     } catch (error) {
-      console.error("Eroare API:", error);
+      console.error("API Error:", error); // Tradus în engleză
     } finally {
       setLoading(false);
     }
@@ -119,12 +116,13 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.background}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.searchContainer}>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.searchInput}
             placeholder={`Search ${viewType}...`}
-            placeholderTextColor={CULORI.griSters}
+            placeholderTextColor={'#EAEAEA'}
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleSearch} 
@@ -168,7 +166,16 @@ export default function SearchScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity 
               style={styles.itemsCard}
-              onPress={() => router.push({ pathname: '/DetailsScreen', params: { name: item.name, image: item.image, about: item.about } })}
+              onPress={() => router.push({ 
+                pathname: '/DetailsScreen', 
+                params: { 
+                  name: item.name, 
+                  image: item.image, 
+                  about: item.about, 
+                  total: item.totalItems ? item.totalItems.toString() : '',
+                  type: item.kind 
+                } 
+              })}
             >
               <Image source={{ uri: item.image }} style={styles.imageAnimeCard} />
               <View style={styles.infoAnimeCard}>
@@ -178,7 +185,7 @@ export default function SearchScreen() {
                     <Ionicons 
                       name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
                       size={28} 
-                      color={favorites.includes(item.id) ? CULORI.auriu : "#ccc"} 
+                      color={favorites.includes(item.id) ? CULORI.favorite : CULORI.fundal} 
                     />
                   </TouchableOpacity>
                 </View>
@@ -194,8 +201,16 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1, backgroundColor: CULORI.fundal },
-  centeredView: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  background: { 
+    flex: 1, 
+    backgroundColor: CULORI.fundal, 
+    paddingTop: StatusBar.currentHeight 
+  },
+  centeredView: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
   searchContainer: {
     paddingHorizontal: 15,
     paddingTop: 15,
@@ -212,22 +227,23 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 45,
-    backgroundColor: CULORI.griInput,
+    backgroundColor: CULORI.searchContainer,
     borderRadius: 8,
     paddingHorizontal: 15,
-    color: CULORI.alb,
+    color: '#EAEAEA',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: CULORI.griBordura,
+    borderColor: CULORI.borduraNav,
   },
   searchButton: {
     marginLeft: 10,
-    backgroundColor: CULORI.auriu,
+    backgroundColor: CULORI.searchContainer,
     height: 45,
     width: 45,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: CULORI.borduraNav,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -239,15 +255,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: CULORI.griBordura,
+    borderColor: CULORI.borduraNav,
     marginHorizontal: 5,
   },
   toggleButtonActive: {
-    backgroundColor: CULORI.toggleActiv,
+    backgroundColor: CULORI.fundal,
     borderColor: CULORI.auriu,
   },
   toggleText: {
-    color: CULORI.griSters,
+    color: CULORI.borduraNav,
     fontWeight: 'bold',
   },
   toggleTextActive: {
@@ -263,11 +279,43 @@ const styles = StyleSheet.create({
     borderColor: CULORI.cardBordura,
     backgroundColor: CULORI.cardFundal,
   },
-  imageAnimeCard: { width: 90, height: 120, borderRadius: 8, backgroundColor: CULORI.griSeparator },
-  infoAnimeCard: { flex: 1, marginLeft: 12, justifyContent: 'center' },
-  nameAndFavoriteContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  titluAnimeCard: { flex: 1, fontSize: 18, fontWeight: 'bold', color: CULORI.auriu, marginBottom: 5 },
-  scoreText: { color: CULORI.auriu, fontSize: 12, marginBottom: 4 },
-  informatiiAnimeCard: { fontSize: 13, lineHeight: 18, color: CULORI.griText },
-  emptyText: { color: 'gray', textAlign: 'center', marginTop: 50, fontSize: 16 },
+  imageAnimeCard: { 
+  width: 90, 
+  height: 120, 
+  borderRadius: 8, 
+  backgroundColor: CULORI.griSeparator 
+},
+  infoAnimeCard: { 
+    flex: 1, 
+    marginLeft: 12, 
+    justifyContent: 'center' 
+  },
+  nameAndFavoriteContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center' 
+  },
+  titluAnimeCard: { 
+    flex: 1, 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: CULORI.auriu, 
+    marginBottom: 5 
+  },
+  scoreText: { 
+    color: 
+    CULORI.auriu, 
+    fontSize: 12, 
+    marginBottom: 4 
+  },
+  informatiiAnimeCard: { 
+    fontSize: 13, 
+    lineHeight: 18, 
+    color: CULORI.griText 
+  },
+  emptyText: { 
+      color: 'gray', 
+      textAlign: 'center', 
+      marginTop: 50, 
+      fontSize: 16 },
 });

@@ -1,17 +1,45 @@
 import { useLocalSearchParams } from "expo-router";
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View, Alert, TouchableOpacity } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  cardBordura: 'rgba(255, 255, 255, 0.1)'
-};
+import { CULORI } from '../var/Culori';
 
 export default function DetailsScreen() {
   const item = useLocalSearchParams();
+
+  const adaugaLaProgres = async () => {
+    try {
+      const savedData = await AsyncStorage.getItem('trackedItems');
+      let currentList = savedData ? JSON.parse(savedData) : [];
+
+      const alreadyExists = currentList.some((trackedItem: { title: string }) => trackedItem.title === item.name);
+
+      if (alreadyExists) {
+        Alert.alert("Notice", "This title is already in your progress tracker.");
+        return;
+      }
+      const totalValue = item.total ? Number(item.total) : null;
+      const itemType = item.type === 'manga' ? 'Manga' : 'Anime';
+
+      const obiectNou = {
+        id: item.name,         
+        title: item.name,      
+        type: itemType, 
+        image: item.image,     
+        current: 0,
+        total: totalValue 
+      };
+
+      currentList.push(obiectNou);
+      await AsyncStorage.setItem('trackedItems', JSON.stringify(currentList));
+
+      Alert.alert("Success!", `${item.name} has been added to your progress tracker.`);
+
+    } catch (error) {
+      console.log("Error adding to progress tracker:", error);
+    }
+  };
 
   return (
     <View style={styles.background}>
@@ -23,7 +51,19 @@ export default function DetailsScreen() {
         <View style={styles.content}>
           <Text style={styles.nameAnimeCard}>{item.name}</Text>
           <View style={styles.separator} />
+          
           <Text style={styles.aboutAnimeCard}>{item.about}</Text>
+
+          {/* Butonul apare DOAR dacă elementul nu este un personaj */}
+          {item.type !== 'characters' && (
+            <TouchableOpacity 
+              style={styles.butonProgres}
+              onPress={adaugaLaProgres}
+            >
+              <Text style={styles.textButonProgres}>+ Add to your list</Text>
+            </TouchableOpacity>
+          )}
+
         </View>
       </ScrollView>
     </View>
@@ -68,5 +108,21 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     lineHeight: 24,
     textAlign: 'justify'
+  },
+
+  butonProgres: {
+    backgroundColor: CULORI.butonFundal,
+    borderColor: CULORI.auriu,
+    borderWidth: 1,
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 30,
+    marginBottom: 20, 
+    alignItems: 'center',
+  },
+  textButonProgres: {
+    color: CULORI.auriu, 
+    fontWeight: 'bold', 
+    fontSize: 16
   }
 });

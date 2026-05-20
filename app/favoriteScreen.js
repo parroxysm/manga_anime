@@ -13,18 +13,7 @@ import {
   View
 } from 'react-native';
 import IP from '../var/IP';
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griSters: 'gray',
-  griSeparator: '#333',
-  cardBordura: 'rgba(255, 255, 255, 0.1)',
-  cardFundal: 'rgba(255, 255, 255, 0.05)',
-  butonFundal: 'rgba(255, 215, 0, 0.2)'
-};
+import {CULORI} from '../var/Culori';
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -40,14 +29,14 @@ export default function FavoritesScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: viewType === 'characters' ? 'Fav Characters' : 'Fav Manga',
+      headerTitle: '',
       headerRight: () => (
         <TouchableOpacity 
           onPress={() => setViewType(prev => prev === 'characters' ? 'manga' : 'characters')}
           style={styles.switchButton}
         >
           <Text numberOfLines={1} style={styles.switchButtonText}>
-            {viewType === 'characters' ? 'Manga' : 'Chars'}
+            {viewType === 'characters' ? 'Manga' : 'Characters'}
           </Text>
         </TouchableOpacity>
       ),
@@ -166,10 +155,10 @@ export default function FavoritesScreen() {
                 <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
                 <TouchableOpacity 
                   onPress={() => toggleFavorite(item.id)}
-                  disabled={loading} // Blochează clicul cât timp se face refresh
-                  style={{ opacity: loading ? 0.5 : 1 }} // Îl face puțin transparent când e blocat
+                  disabled={loading}
+                  style={{ opacity: loading ? 0.5 : 1 }}
                 >
-                  <Ionicons name="heart" size={28} color={CULORI.auriu} />
+                  <Ionicons name="heart" size={28} color={CULORI.favorite} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>

@@ -2,17 +2,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import IP from '../var/IP';
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griInput: '#2A2A2A',
-  rosuEroare: '#ff4444',
-  cardBordura: '#414141',
-  butonText: '#000'
-};
+import {CULORI} from '../var/Culori';
 
 export default function SignUpScreen() {
   const [username, setUsername] = useState('');
@@ -30,6 +20,11 @@ export default function SignUpScreen() {
     
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match.");
+      return; 
+    }
+
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters.");
       return;
     }
 
@@ -47,7 +42,6 @@ export default function SignUpScreen() {
       const data = await response.json();
 
       if (data.success) {
-        // Dacă a mers, îl trimitem înapoi la Login
         router.replace('/logInScreen');
       } else {
         setErrorMessage("Username already exists or registration failed.");

@@ -1,3 +1,3 @@
-export const IP = "https://https://136.119.218.151:3000";
+export const IP = "http://104.198.173.252:3000";
 
 export default IP;

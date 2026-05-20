@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
@@ -11,26 +11,17 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View, 
+  StatusBar
 } from 'react-native';
 import FavoritesScreen from './favoriteScreen';
 import MangaScreen from './mangaScreen.js';
 import SearchScreen from './SearchScreen';
 import IP from '../var/IP';
+import {CULORI} from '../var/Culori';
+import ProgressScreen from './ProgressScreen';
 
 const Tab = createBottomTabNavigator();
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griInactiv: '#ccc',
-  griSeparator: '#333',
-  cardBordura: 'rgba(255, 255, 255, 0.1)',
-  cardFundal: 'rgba(255, 255, 255, 0.05)',
-  butonFundal: 'rgba(255, 215, 0, 0.2)'
-};
 
 const HomePage = () => {
   const router = useRouter();
@@ -61,7 +52,7 @@ const HomePage = () => {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: viewType === 'characters' ? 'Top Characters' : 'Top Manga',
+      headerTitle: '',
       headerRight: () => (
         <TouchableOpacity 
           onPress={() => setViewType(prev => prev === 'characters' ? 'manga' : 'characters')}
@@ -115,7 +106,9 @@ const HomePage = () => {
           name: item.name || item.title || 'Unknown', 
           image: item.images?.jpg?.image_url,
           about: (item.about || item.synopsis || 'No description available.').trim(),
-          score: item.score || null
+          score: item.score || null,
+          totalItems: type === 'manga' ? item.chapters : item.episodes,
+          kind: type
         }));
 
         const uniqueItems = mappedData.filter((value, index, self) =>
@@ -158,7 +151,7 @@ const HomePage = () => {
         <ActivityIndicator size="large" color={CULORI.auriu} />
       </View>
     );
-  }
+  } 
 
   return (
     <View style={styles.background}>
@@ -170,7 +163,7 @@ const HomePage = () => {
         renderItem={({ item }) => (
           <TouchableOpacity 
             style={styles.itemsCard} 
-            onPress={() => router.push({ pathname: '/DetailsScreen', params: { name: item.name, image: item.image, about: item.about } })}
+            onPress={() => router.push({ pathname: '/DetailsScreen', params: { name: item.name, image: item.image, about: item.about, total: item.totalItems ? item.totalItems.toString() : '', type: item.kind } })}
           >
             <Image source={{ uri: item.image }} style={styles.imageAnimeCard} />
             <View style={styles.infoAnimeCard}>
@@ -180,7 +173,7 @@ const HomePage = () => {
                   <Ionicons 
                     name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
                     size={28} 
-                    color={favorites.includes(item.id) ? CULORI.auriu : CULORI.griInactiv} 
+                    color={favorites.includes(item.id) ? CULORI.favorite : CULORI.fundal} 
                   />
                 </TouchableOpacity>
               </View>
@@ -196,16 +189,36 @@ const HomePage = () => {
 
 export default function Main(){
   return(
-    <Tab.Navigator screenOptions={{ 
+    <Tab.Navigator screenOptions={({ route }) => ({ 
       headerShown: true, 
-      tabBarStyle: { backgroundColor: CULORI.fundal, borderTopColor: CULORI.griSeparator },
+      tabBarStyle: { backgroundColor: CULORI.cardFundal, borderTopColor: CULORI.borduraNav },
       headerStyle: styles.AnimePageHeaderStyle,
       headerTintColor: CULORI.alb,
-      headerTitleAlign: 'center'
-    }}>
+      headerTitleAlign: 'center',
+      
+      tabBarIcon: ({ color, size }) => {
+        let iconName;
+
+        if (route.name === 'Home') {
+          iconName = 'home';
+        } else if (route.name === 'Search') {
+          iconName = 'search';
+        } else if (route.name === 'Favorites') {
+          iconName = 'heart';
+        } else if (route.name === 'ProgressScreen') {
+          iconName = 'list';
+        }
+
+        return <Ionicons name={iconName} size={size} color={color} />;
+      },
+      tabBarActiveTintColor: CULORI.tabActiv,
+      tabBarInactiveTintColor: CULORI.tabInactiv,
+      
+    })}>
       <Tab.Screen name="Home" component={HomePage} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
+      <Tab.Screen name="ProgressScreen" component={ProgressScreen} options={{headerShown: false}}/>
     </Tab.Navigator>
   );
 };
@@ -229,7 +242,7 @@ const styles = StyleSheet.create({
     width: 90,
     height: 120,
     borderRadius: 8,
-    backgroundColor: CULORI.griSeparator,
+    backgroundColor: CULORI.fundal,
   },
   infoAnimeCard: {
     flex: 1,

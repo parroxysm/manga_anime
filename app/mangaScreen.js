@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,19 +10,10 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  SafeAreaView
 } from 'react-native';
-
-const CULORI = {
-  fundal: '#1E1E1E',
-  auriu: 'gold',
-  alb: 'white',
-  griText: '#bbb',
-  griInactiv: '#ccc',
-  griSeparator: '#333',
-  cardBordura: 'rgba(255, 255, 255, 0.1)',
-  cardFundal: 'rgba(255, 255, 255, 0.05)'
-};
+import {CULORI} from '../var/Culori';
 
 export default function MangaScreen() {
   const router = useRouter();
@@ -115,42 +106,45 @@ export default function MangaScreen() {
   }
 
   return (
-    <View style={styles.background}>
-      <FlatList
-        data={mangaList}
-        keyExtractor={(item) => item.id}
-        onRefresh={fetchManga}
-        refreshing={loading}
-        contentContainerStyle={{ paddingTop: 10 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.itemsCard}
-            onPress={() => router.push({
-              pathname: '/DetailsScreen',
-              params: { name: item.name, image: item.image, about: item.about }
-            })}
-          >
-            <Image source={{ uri: item.image }} style={styles.imageMangaCard} />
-            <View style={styles.infoMangaCard}>
-              <View style={styles.nameAndFavoriteContainer}>
-                <Text style={styles.titluMangaCard} numberOfLines={1}>{item.name}</Text>
-                <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                  <Ionicons 
-                    name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
-                    size={28} 
-                    color={favorites.includes(item.id) ? CULORI.auriu : CULORI.griInactiv} 
-                  />
-                </TouchableOpacity>
+    <SafeAreaView style={styles.background}>
+      <View style={styles.background}>
+        <Stack.Screen options={{ headerShown: false }} /> 
+        <FlatList
+          data={mangaList}
+          keyExtractor={(item) => item.id}
+          onRefresh={fetchManga}
+          refreshing={loading}
+          contentContainerStyle={{ paddingTop: 10 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.itemsCard}
+              onPress={() => router.push({
+                pathname: '/DetailsScreen',
+                params: { name: item.name, image: item.image, about: item.about }
+              })}
+            >
+              <Image source={{ uri: item.image }} style={styles.imageMangaCard} />
+              <View style={styles.infoMangaCard}>
+                <View style={styles.nameAndFavoriteContainer}>
+                  <Text style={styles.titluMangaCard} numberOfLines={1}>{item.name}</Text>
+                  <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                    <Ionicons 
+                      name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
+                      size={28} 
+                      color={favorites.includes(item.id) ? CULORI.auriu : CULORI.fundal} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.scoreText}>⭐ {item.score}</Text>
+                <Text style={styles.informatiiMangaCard} numberOfLines={3}>
+                  {item.about}
+                </Text>
               </View>
-              <Text style={styles.scoreText}>⭐ {item.score}</Text>
-              <Text style={styles.informatiiMangaCard} numberOfLines={3}>
-                {item.about}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
-    </View>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 

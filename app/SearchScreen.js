@@ -131,15 +131,15 @@ export default function SearchScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.topTabsContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+        <View style={styles.topTabsContainer}>
           {['anime', 'manga', 'characters'].map((type) => (
             <TouchableOpacity 
               key={type}
-              style={[styles.tabButton, viewType === type && { backgroundColor: theme.accent }]}
+              style={[styles.tabButton, { borderColor: theme.bordura }, viewType === type && { backgroundColor: theme.accent, borderColor: theme.accent }]}
               onPress={() => { setViewType(type); setResults([]); setHasSearched(false); }}
             >
               <Text style={[styles.tabText, { color: viewType === type ? theme.fundal : theme.textSecundar }]}>
-                {type.charAt(0).toUpperCase() + type.slice(1)}
+                {type.toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}
@@ -226,18 +226,18 @@ const styles = StyleSheet.create({
   topTabsContainer: {
     flexDirection: 'row',
     marginBottom: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
+    gap: 8,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   itemsCard: {

@@ -95,7 +95,7 @@ export default function ProgressScreen() {
                 <View style={styles.headerRow}>
                   <Text style={[styles.title, { color: theme.accent }]} numberOfLines={1}>{item.title}</Text>
                   <TouchableOpacity onPress={() => removeItem(item.itemId)}>
-                    <Ionicons name="trash-outline" size={20} color={theme.danger} />
+                    <Ionicons name="trash-outline" size={24} color={theme.danger} />
                   </TouchableOpacity>
                 </View>
                 <Text style={[styles.subtitle, { color: theme.textSecundar }]}>

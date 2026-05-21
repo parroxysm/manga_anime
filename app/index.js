@@ -82,10 +82,7 @@ const HomePage = () => {
     try {
       setLoading(true);
       const randomPage = Math.floor(Math.random() * 15) + 1;
-      let URL = '';
-      if (type === 'characters') URL = `https://api.jikan.moe/v4/top/characters?page=${randomPage}`;
-      else if (type === 'manga') URL = `https://api.jikan.moe/v4/top/manga?page=${randomPage}`;
-      else URL = `https://api.jikan.moe/v4/top/anime?page=${randomPage}`;
+      let URL = `https://api.jikan.moe/v4/top/${type}?page=${randomPage}`;
 
       const response = await fetch(URL);
       const json = await response.json();
@@ -98,8 +95,8 @@ const HomePage = () => {
           image: item.images?.jpg?.image_url,
           about: (item.about || item.synopsis || 'No description available.').trim(),
           score: item.score || null,
-          totalItems: type === 'manga' ? item.chapters : type === 'anime' ? item.episodes : null,
-          kind: type
+          total: type === 'manga' ? item.chapters : type === 'anime' ? item.episodes : null,
+          type: type
         }));
 
         const uniqueItems = mappedData.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
@@ -131,14 +128,14 @@ const HomePage = () => {
   return (
     <View style={[styles.background, { backgroundColor: theme.fundal }]}>
       <View style={styles.topTabsContainer}>
-        {['anime', 'manga', 'characters'].map((type) => (
+        {['anime', 'manga', 'characters'].map((t) => (
           <TouchableOpacity 
-            key={type}
-            style={[styles.tabButton, { borderColor: theme.bordura }, viewType === type && { backgroundColor: theme.accent, borderColor: theme.accent }]}
-            onPress={() => setViewType(type)}
+            key={t}
+            style={[styles.tabButton, { borderColor: theme.bordura }, viewType === t && { backgroundColor: theme.accent, borderColor: theme.accent }]}
+            onPress={() => setViewType(t)}
           >
-            <Text style={[styles.tabText, { color: viewType === type ? theme.fundal : theme.textSecundar }]}>
-              {type.toUpperCase()}
+            <Text style={[styles.tabText, { color: viewType === t ? theme.fundal : theme.textSecundar }]}>
+              {t.toUpperCase()}
             </Text>
           </TouchableOpacity>
         ))}
@@ -158,10 +155,7 @@ const HomePage = () => {
           renderItem={({ item }) => (
             <TouchableOpacity 
               style={[styles.itemsCard, { backgroundColor: theme.card, borderColor: theme.bordura }]} 
-              onPress={() => router.push({ 
-                pathname: '/DetailsScreen', 
-                params: { actualId: item.actualId, id: item.id, name: item.name, image: item.image, about: item.about, total: item.totalItems ? item.totalItems.toString() : '', type: item.kind } 
-              })}
+              onPress={() => router.push({ pathname: '/DetailsScreen', params: item })}
             >
               <Image source={{ uri: item.image }} style={[styles.imageAnimeCard, { borderColor: theme.bordura }]} />
               <View style={styles.infoAnimeCard}>

@@ -71,7 +71,8 @@ export default function FavoritesScreen() {
       const isManga = rawId.startsWith('manga_');
       const isAnime = rawId.startsWith('anime_');
       const idOnly = rawId.replace('manga_', '').replace('anime_', '').replace('char_', '');
-      const url = isManga ? `https://api.jikan.moe/v4/manga/${idOnly}` : isAnime ? `https://api.jikan.moe/v4/anime/${idOnly}` : `https://api.jikan.moe/v4/characters/${idOnly}`;
+      const type = isManga ? 'manga' : isAnime ? 'anime' : 'characters';
+      const url = `https://api.jikan.moe/v4/${type}/${idOnly}`;
 
       try {
         const res = await fetch(url);
@@ -85,7 +86,7 @@ export default function FavoritesScreen() {
             name: item.name || item.title || 'Unknown',
             image: item.images?.jpg?.image_url,
             about: (item.about || item.synopsis || 'No description available.').trim(),
-            kind: isManga ? 'manga' : isAnime ? 'anime' : 'characters'
+            type: type
           });
         }
         await delay(350); 
@@ -117,20 +118,20 @@ export default function FavoritesScreen() {
   }, []);
 
   useEffect(() => {
-    setFilteredItems(allFavorites.filter(item => item.kind === viewType));
+    setFilteredItems(allFavorites.filter(item => item.type === viewType));
   }, [viewType, allFavorites]);
 
   return (
     <View style={[styles.background, { backgroundColor: theme.fundal }]}>
       <View style={styles.topTabsContainer}>
-        {['anime', 'manga', 'characters'].map((type) => (
+        {['anime', 'manga', 'characters'].map((t) => (
           <TouchableOpacity 
-            key={type}
-            style={[styles.tabButton, { borderColor: theme.bordura }, viewType === type && { backgroundColor: theme.accent, borderColor: theme.accent }]}
-            onPress={() => setViewType(type)}
+            key={t}
+            style={[styles.tabButton, { borderColor: theme.bordura }, viewType === t && { backgroundColor: theme.accent, borderColor: theme.accent }]}
+            onPress={() => setViewType(t)}
           >
-            <Text style={[styles.tabText, { color: viewType === type ? theme.fundal : theme.textSecundar }]}>
-              {type.toUpperCase()}
+            <Text style={[styles.tabText, { color: viewType === t ? theme.fundal : theme.textSecundar }]}>
+              {t.toUpperCase()}
             </Text>
           </TouchableOpacity>
         ))}

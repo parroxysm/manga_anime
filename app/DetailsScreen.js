@@ -33,22 +33,22 @@ export default function DetailsScreen() {
       if (!item.actualId) return;
       try {
         setLoadingExtras(true);
-        if (item.kind === 'characters') {
+        if (item.type === 'characters') {
           const charRes = await fetch(`https://api.jikan.moe/v4/characters/${item.actualId}/full`);
           const charJson = await charRes.json();
           setExtraData(charJson.data);
           let related = [];
-          if (charJson.data?.anime) related = [...related, ...charJson.data.anime.map(a => ({ actualId: a.anime.mal_id, id: `anime_${a.anime.mal_id}`, name: a.anime.title, image: a.anime.images?.jpg?.image_url, kind: 'anime' }))];
-          if (charJson.data?.manga) related = [...related, ...charJson.data.manga.map(m => ({ actualId: m.manga.mal_id, id: `manga_${m.manga.mal_id}`, name: m.manga.title, image: m.manga.images?.jpg?.image_url, kind: 'manga' }))];
+          if (charJson.data?.anime) related = [...related, ...charJson.data.anime.map(a => ({ actualId: a.anime.mal_id, id: `anime_${a.anime.mal_id}`, name: a.anime.title, image: a.anime.images?.jpg?.image_url, type: 'anime' }))];
+          if (charJson.data?.manga) related = [...related, ...charJson.data.manga.map(m => ({ actualId: m.manga.mal_id, id: `manga_${m.manga.mal_id}`, name: m.manga.title, image: m.manga.images?.jpg?.image_url, type: 'manga' }))];
           setRelatedItems(related.slice(0, 15));
         } else {
-          const fullRes = await fetch(`https://api.jikan.moe/v4/${item.kind}/${item.actualId}/full`);
+          const fullRes = await fetch(`https://api.jikan.moe/v4/${item.type}/${item.actualId}/full`);
           const fullJson = await fullRes.json();
           setExtraData(fullJson.data);
-          const charsRes = await fetch(`https://api.jikan.moe/v4/${item.kind}/${item.actualId}/characters`);
+          const charsRes = await fetch(`https://api.jikan.moe/v4/${item.type}/${item.actualId}/characters`);
           const charsJson = await charsRes.json();
           if (charsJson.data) {
-            const related = charsJson.data.map(c => ({ actualId: c.character.mal_id, id: `char_${c.character.mal_id}`, name: c.character.name, image: c.character.images?.jpg?.image_url, kind: 'characters' }));
+            const related = charsJson.data.map(c => ({ actualId: c.character.mal_id, id: `char_${c.character.mal_id}`, name: c.character.name, image: c.character.images?.jpg?.image_url, type: 'characters' }));
             setRelatedItems(related.slice(0, 15));
           }
         }
@@ -58,14 +58,20 @@ export default function DetailsScreen() {
       }
     };
     fetchDetails();
-  }, [item.actualId, item.kind]);
+  }, [item.actualId, item.type]);
 
   const addToProgress = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
       if (!userId) return;
       
-      const parsedTotal = item.total ? parseInt(item.total, 10) : (extraData?.episodes || extraData?.chapters || null);
+      let parsedTotal = null;
+      if (item.total && item.total !== 'null' && item.total !== 'undefined') {
+        parsedTotal = parseInt(item.total, 10);
+      } else if (extraData?.episodes || extraData?.chapters) {
+        parsedTotal = extraData.episodes || extraData.chapters;
+      }
+      if (isNaN(parsedTotal)) parsedTotal = null;
       
       const res = await fetch(`${IP}/progress`, {
         method: 'POST',
@@ -74,7 +80,7 @@ export default function DetailsScreen() {
           userId: Number(userId), 
           itemId: item.id, 
           title: item.name, 
-          type: item.kind, 
+          type: item.type, 
           image: item.image, 
           total: parsedTotal 
         })
@@ -107,7 +113,7 @@ export default function DetailsScreen() {
             </View>
           )}
 
-          {extraData && item.kind !== 'characters' && (
+          {extraData && item.type !== 'characters' && (
             <View style={[styles.additionalInfoContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
               {extraData.rank && <View style={styles.infoRow}><Text style={[styles.infoLabel, { color: theme.textSecundar }]}>Rank:</Text><Text style={[styles.infoValue, { color: theme.text }]}>#{extraData.rank}</Text></View>}
               {extraData.popularity && <View style={styles.infoRow}><Text style={[styles.infoLabel, { color: theme.textSecundar }]}>Popularity:</Text><Text style={[styles.infoValue, { color: theme.text }]}>#{extraData.popularity}</Text></View>}
@@ -118,7 +124,7 @@ export default function DetailsScreen() {
 
           <Text style={[styles.aboutAnimeCard, { color: theme.text }]}>{extraData?.synopsis || extraData?.about || item.about}</Text>
 
-          {item.kind !== 'characters' && (
+          {item.type !== 'characters' && (
             <TouchableOpacity style={[styles.butonProgres, { backgroundColor: theme.accent }]} onPress={addToProgress}>
               <Text style={[styles.textButonProgres, { color: theme.fundal }]}>+ Add to your list</Text>
             </TouchableOpacity>
@@ -129,7 +135,7 @@ export default function DetailsScreen() {
           ) : (
             relatedItems.length > 0 && (
               <View style={styles.relatedSection}>
-                <Text style={[styles.relatedTitle, { color: theme.text }]}>{item.kind === 'characters' ? 'Featured In' : 'Characters'}</Text>
+                <Text style={[styles.relatedTitle, { color: theme.text }]}>{item.type === 'characters' ? 'Featured In' : 'Characters'}</Text>
                 <FlatList
                   horizontal showsHorizontalScrollIndicator={false}
                   data={relatedItems}

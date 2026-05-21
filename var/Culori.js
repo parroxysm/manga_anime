@@ -1,23 +1,23 @@
 export const LIGHT = {
   fundal: '#FFFFFF',
-  card: '#F5F5F5',
-  bordura: '#E0E0E0',
+  card: '#FAFAFA',
   text: '#000000',
-  textSecundar: '#757575',
-  accent: '#6200EE',
-  danger: '#B00020',
-  inputBg: '#EEEEEE',
-  tabInactiv: '#9E9E9E',
+  textSecundar: '#8E8E8E',
+  accent: '#000000',
+  bordura: '#DBDBDB',
+  tabInactiv: '#C7C7C7',
+  inputBg: '#FFFFFF',
+  danger: '#FF3040'
 };
 
 export const DARK = {
-  fundal: '#121212',
-  card: '#1E1E1E',
-  bordura: '#333333',
+  fundal: '#000000',
+  card: '#121212',
   text: '#FFFFFF',
-  textSecundar: '#B0B0B0',
-  accent: '#BB86FC',
-  danger: '#CF6679',
-  inputBg: '#2C2C2C',
-  tabInactiv: '#757575',
+  textSecundar: '#A8A8A8',
+  accent: '#FFFFFF',
+  bordura: '#262626',
+  tabInactiv: '#4D4D4D',
+  inputBg: '#262626',
+  danger: '#FF3040'
 };

@@ -83,8 +83,8 @@ export default function SearchScreen() {
           image: item.images?.jpg?.image_url,
           about: (item.about || item.synopsis || 'No description available.').trim(),
           score: item.score || null,
-          totalItems: totalVal,
-          kind: viewType 
+          total: totalVal,
+          type: viewType 
         };
       });
 
@@ -132,14 +132,14 @@ export default function SearchScreen() {
         </View>
 
         <View style={styles.topTabsContainer}>
-          {['anime', 'manga', 'characters'].map((type) => (
+          {['anime', 'manga', 'characters'].map((t) => (
             <TouchableOpacity 
-              key={type}
-              style={[styles.tabButton, { borderColor: theme.bordura }, viewType === type && { backgroundColor: theme.accent, borderColor: theme.accent }]}
-              onPress={() => { setViewType(type); setResults([]); setHasSearched(false); }}
+              key={t}
+              style={[styles.tabButton, { borderColor: theme.bordura }, viewType === t && { backgroundColor: theme.accent, borderColor: theme.accent }]}
+              onPress={() => { setViewType(t); setResults([]); setHasSearched(false); }}
             >
-              <Text style={[styles.tabText, { color: viewType === type ? theme.fundal : theme.textSecundar }]}>
-                {type.toUpperCase()}
+              <Text style={[styles.tabText, { color: viewType === t ? theme.fundal : theme.textSecundar }]}>
+                {t.toUpperCase()}
               </Text>
             </TouchableOpacity>
           ))}

@@ -82,17 +82,20 @@ app.post('/progress', async (req, res) => {
     const { userId, itemId, title, type, image, total, current } = req.body;
     if (!userId || !itemId) return res.json({ success: false });
     
+    const parsedTotal = total ? parseInt(total, 10) : null;
+    const parsedCurrent = current !== undefined ? parseInt(current, 10) : 0;
+
     const existing = await prisma.progressItem.findFirst({ where: { userId, itemId } });
     if (existing) {
       const updated = await prisma.progressItem.update({
         where: { id: existing.id },
-        data: { current: current !== undefined ? current : existing.current }
+        data: { current: parsedCurrent }
       });
       return res.json({ success: true, item: updated });
     }
 
     const newItem = await prisma.progressItem.create({
-      data: { userId, itemId, title, type, image, total, current: current || 0 }
+      data: { userId, itemId, title, type, image, total: parsedTotal, current: parsedCurrent }
     });
     return res.json({ success: true, item: newItem });
   } catch (err) {

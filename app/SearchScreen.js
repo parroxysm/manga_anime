@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter, Stack } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter, Stack } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,22 +12,31 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Keyboard, 
-  StatusBar
-} from 'react-native';
-import IP from '../var/IP';
-import { CULORI } from '../var/Culori';
+  Keyboard,
+  StatusBar,
+} from "react-native";
+import IP from "../var/IP";
+import { LIGHT, DARK } from "../var/Culori";
 
 export default function SearchScreen() {
   const router = useRouter();
-  
   const [userId, setUserId] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewType, setViewType] = useState('characters');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewType, setViewType] = useState("anime");
   const [results, setResults] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false); 
+  const [hasSearched, setHasSearched] = useState(false);
+  const [theme, setTheme] = useState(LIGHT);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("isDarkTheme").then((val) =>
+        setTheme(val === "true" ? DARK : LIGHT),
+      );
+      if (userId) loadFavorites(userId);
+    }, [userId]),
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -37,66 +46,66 @@ export default function SearchScreen() {
     init();
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (userId) loadFavorites(userId);
-    }, [userId])
-  );
-
   const getUserId = async () => {
     try {
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const storedUserId = await AsyncStorage.getItem("userId");
       const parsed = storedUserId ? Number(storedUserId) : null;
-      if (!parsed) router.replace('/logInScreen');
+      if (!parsed) router.replace("/logInScreen");
       setUserId(parsed);
       return parsed;
-    } catch (error) { console.log(error); }
+    } catch (error) {}
   };
 
   const loadFavorites = async (uid) => {
     try {
       const res = await fetch(`${IP}/favorites?userId=${uid}`);
       const data = await res.json();
-      const favIds = data.favorites.map(f => f.characterId.toString());
-      setFavorites(favIds);
-    } catch (e) { console.log(e); }
+      setFavorites(data.favorites.map((f) => f.characterId.toString()));
+    } catch (e) {}
   };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-
     Keyboard.dismiss();
     setLoading(true);
     setHasSearched(true);
 
     try {
-      const endpoint = viewType === 'characters'
-        ? `https://api.jikan.moe/v4/characters?q=${searchQuery}&limit=20`
-        : `https://api.jikan.moe/v4/manga?q=${searchQuery}&limit=20`;
-
+      let endpoint = `https://api.jikan.moe/v4/${viewType}?q=${searchQuery}&limit=25`;
       const response = await fetch(endpoint);
       const json = await response.json();
 
-      const mappedData = (Array.isArray(json.data) ? json.data : []).map((item) => {
-        // Rezolvarea pentru personaje: alocăm totalItems doar dacă e manga/anime
-        let totalVal = null;
-        if (viewType === 'manga') totalVal = item.chapters;
-        else if (viewType === 'anime') totalVal = item.episodes; 
+      const mappedData = (Array.isArray(json.data) ? json.data : []).map(
+        (item) => {
+          let totalVal = null;
+          if (viewType === "manga") totalVal = item.chapters;
+          else if (viewType === "anime") totalVal = item.episodes;
+          let idPrefix =
+            viewType === "manga"
+              ? "manga_"
+              : viewType === "anime"
+                ? "anime_"
+                : "char_";
 
-        return {
-          id: viewType === 'manga' ? `manga_${item.mal_id}` : item.mal_id.toString(),
-          name: item.name || item.title || 'Unknown',
-          image: item.images?.jpg?.image_url,
-          about: (item.about || item.synopsis || 'No description available.').trim(),
-          score: item.score || null,
-          totalItems: totalVal,
-          kind: viewType // Trimitem tipul ca pagina de detalii să știe că e personaj
-        };
-      });
+          return {
+            actualId: item.mal_id,
+            id: `${idPrefix}${item.mal_id}`,
+            name: item.name || item.title || "Unknown",
+            image: item.images?.jpg?.image_url,
+            about: (
+              item.about ||
+              item.synopsis ||
+              "No description available."
+            ).trim(),
+            score: item.score || null,
+            totalItems: totalVal,
+            kind: viewType,
+          };
+        },
+      );
 
       setResults(mappedData);
     } catch (error) {
-      console.error("API Error:", error); // Tradus în engleză
     } finally {
       setLoading(false);
     }
@@ -104,54 +113,85 @@ export default function SearchScreen() {
 
   const toggleFavorite = async (id) => {
     if (!userId) return;
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
+    );
     try {
       await fetch(`${IP}/toggle-favorite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, characterId: id })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, characterId: id }),
       });
-    } catch (err) { console.log(err); }
+    } catch (err) {}
   };
 
   return (
-    <View style={styles.background}>
+    <View style={[styles.background, { backgroundColor: theme.fundal }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.searchContainer}>
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: theme.fundal, borderBottomColor: theme.bordura },
+        ]}
+      >
         <View style={styles.inputRow}>
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              {
+                backgroundColor: theme.inputBg,
+                color: theme.text,
+                borderColor: theme.bordura,
+              },
+            ]}
             placeholder={`Search ${viewType}...`}
-            placeholderTextColor={'#EAEAEA'}
+            placeholderTextColor={theme.textSecundar}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch} 
+            onSubmitEditing={handleSearch}
           />
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Ionicons name="search" size={24} color={CULORI.fundal} />
+          <TouchableOpacity
+            style={[styles.searchButton, { backgroundColor: theme.accent }]}
+            onPress={handleSearch}
+          >
+            <Ionicons name="search" size={24} color={theme.fundal} />
           </TouchableOpacity>
         </View>
-
         <View style={styles.toggleContainer}>
-          <TouchableOpacity 
-            style={[styles.toggleButton, viewType === 'characters' && styles.toggleButtonActive]}
-            onPress={() => { setViewType('characters'); setResults([]); setHasSearched(false); }}
-          >
-            <Text style={[styles.toggleText, viewType === 'characters' && styles.toggleTextActive]}>Characters</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.toggleButton, viewType === 'manga' && styles.toggleButtonActive]}
-            onPress={() => { setViewType('manga'); setResults([]); setHasSearched(false); }}
-          >
-            <Text style={[styles.toggleText, viewType === 'manga' && styles.toggleTextActive]}>Manga</Text>
-          </TouchableOpacity>
+          {["anime", "manga", "characters"].map((type) => (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.toggleButton,
+                { borderColor: theme.bordura },
+                viewType === type && {
+                  borderColor: theme.accent,
+                  backgroundColor: theme.card,
+                },
+              ]}
+              onPress={() => {
+                setViewType(type);
+                setResults([]);
+                setHasSearched(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.toggleText,
+                  { color: theme.textSecundar },
+                  viewType === type && { color: theme.accent },
+                ]}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
       {loading ? (
         <View style={styles.centeredView}>
-          <ActivityIndicator size="large" color={CULORI.auriu} />
+          <ActivityIndicator size="large" color={theme.accent} />
         </View>
       ) : (
         <FlatList
@@ -160,37 +200,61 @@ export default function SearchScreen() {
           contentContainerStyle={{ paddingTop: 10 }}
           ListEmptyComponent={
             hasSearched && !loading ? (
-              <Text style={styles.emptyText}>No results found for "{searchQuery}".</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecundar }]}>
+                No results found.
+              </Text>
             ) : null
           }
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={styles.itemsCard}
-              onPress={() => router.push({ 
-                pathname: '/DetailsScreen', 
-                params: { 
-                  name: item.name, 
-                  image: item.image, 
-                  about: item.about, 
-                  total: item.totalItems ? item.totalItems.toString() : '',
-                  type: item.kind 
-                } 
-              })}
+            <TouchableOpacity
+              style={[
+                styles.itemsCard,
+                { backgroundColor: theme.card, borderColor: theme.bordura },
+              ]}
+              onPress={() =>
+                router.push({ pathname: "/DetailsScreen", params: item })
+              }
             >
-              <Image source={{ uri: item.image }} style={styles.imageAnimeCard} />
+              <Image
+                source={{ uri: item.image }}
+                style={[styles.imageAnimeCard, { borderColor: theme.bordura }]}
+              />
               <View style={styles.infoAnimeCard}>
                 <View style={styles.nameAndFavoriteContainer}>
-                  <Text style={styles.titluAnimeCard} numberOfLines={1}>{item.name}</Text>
+                  <Text
+                    style={[styles.titluAnimeCard, { color: theme.accent }]}
+                    numberOfLines={1}
+                  >
+                    {item.name}
+                  </Text>
                   <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                    <Ionicons 
-                      name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
-                      size={28} 
-                      color={favorites.includes(item.id) ? CULORI.favorite : CULORI.fundal} 
+                    <Ionicons
+                      name={
+                        favorites.includes(item.id) ? "heart" : "heart-outline"
+                      }
+                      size={28}
+                      color={
+                        favorites.includes(item.id)
+                          ? theme.danger
+                          : theme.bordura
+                      }
                     />
                   </TouchableOpacity>
                 </View>
-                {item.score && <Text style={styles.scoreText}>⭐ {item.score}</Text>}
-                <Text style={styles.informatiiAnimeCard} numberOfLines={3}>{item.about}</Text>
+                {item.score && (
+                  <Text style={[styles.scoreText, { color: theme.accent }]}>
+                    ⭐ {item.score}
+                  </Text>
+                )}
+                <Text
+                  style={[
+                    styles.informatiiAnimeCard,
+                    { color: theme.textSecundar },
+                  ]}
+                  numberOfLines={3}
+                >
+                  {item.about}
+                </Text>
               </View>
             </TouchableOpacity>
           )}
@@ -201,121 +265,63 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: { 
-    flex: 1, 
-    backgroundColor: CULORI.fundal, 
-    paddingTop: StatusBar.currentHeight 
-  },
-  centeredView: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
+  background: { flex: 1, paddingTop: StatusBar.currentHeight },
+  centeredView: { flex: 1, justifyContent: "center", alignItems: "center" },
   searchContainer: {
     paddingHorizontal: 15,
     paddingTop: 15,
     paddingBottom: 10,
-    backgroundColor: CULORI.fundal,
     borderBottomWidth: 1,
-    borderBottomColor: CULORI.griSeparator,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
+  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
   searchInput: {
     flex: 1,
     height: 45,
-    backgroundColor: CULORI.searchContainer,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 15,
-    color: '#EAEAEA',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: CULORI.borduraNav,
   },
   searchButton: {
     marginLeft: 10,
-    backgroundColor: CULORI.searchContainer,
     height: 45,
     width: 45,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderColor: CULORI.borduraNav,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  toggleContainer: { flexDirection: "row", justifyContent: "space-between" },
   toggleButton: {
     flex: 1,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: CULORI.borduraNav,
     marginHorizontal: 5,
   },
-  toggleButtonActive: {
-    backgroundColor: CULORI.fundal,
-    borderColor: CULORI.auriu,
-  },
-  toggleText: {
-    color: CULORI.borduraNav,
-    fontWeight: 'bold',
-  },
-  toggleTextActive: {
-    color: CULORI.auriu,
-  },
+  toggleText: { fontWeight: "bold" },
   itemsCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 10,
     marginHorizontal: 12,
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: CULORI.cardBordura,
-    backgroundColor: CULORI.cardFundal,
   },
-  imageAnimeCard: { 
-  width: 90, 
-  height: 120, 
-  borderRadius: 8, 
-  backgroundColor: CULORI.griSeparator 
-},
-  infoAnimeCard: { 
-    flex: 1, 
-    marginLeft: 12, 
-    justifyContent: 'center' 
+  imageAnimeCard: { width: 90, height: 120, borderRadius: 8, borderWidth: 1 },
+  infoAnimeCard: { flex: 1, marginLeft: 12, justifyContent: "center" },
+  nameAndFavoriteContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  nameAndFavoriteContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
+  titluAnimeCard: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
   },
-  titluAnimeCard: { 
-    flex: 1, 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: CULORI.auriu, 
-    marginBottom: 5 
-  },
-  scoreText: { 
-    color: 
-    CULORI.auriu, 
-    fontSize: 12, 
-    marginBottom: 4 
-  },
-  informatiiAnimeCard: { 
-    fontSize: 13, 
-    lineHeight: 18, 
-    color: CULORI.griText 
-  },
-  emptyText: { 
-      color: 'gray', 
-      textAlign: 'center', 
-      marginTop: 50, 
-      fontSize: 16 },
+  scoreText: { fontSize: 12, marginBottom: 4 },
+  informatiiAnimeCard: { fontSize: 13, lineHeight: 18 },
+  emptyText: { textAlign: "center", marginTop: 50, fontSize: 16 },
 });

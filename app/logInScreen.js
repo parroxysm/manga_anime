@@ -1,80 +1,123 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import IP from '../var/IP';
-import {CULORI} from '../var/Culori';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import IP from "../var/IP";
+import { LIGHT, DARK } from "../var/Culori";
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [checkExisted, setCheckExisted] = useState(null);
+  const [theme, setTheme] = useState(LIGHT);
   const router = useRouter();
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("isDarkTheme").then((val) => {
+        setTheme(val === "true" ? DARK : LIGHT);
+      });
+    }, []),
+  );
 
   const handleLogin = async () => {
     try {
       const response = await fetch(`${IP}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-        body: JSON.stringify({ username: username.trim(), password })
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+        body: JSON.stringify({ username: username.trim(), password }),
       });
-      
       const data = await response.json();
 
       if (data.success) {
         await AsyncStorage.setItem("userId", data.userId.toString());
-        router.replace('/App');
+        await AsyncStorage.setItem("username", username.trim());
+        router.replace("/");
       } else {
         setCheckExisted(false);
       }
     } catch (error) {
-      console.log(error);
       setCheckExisted(false);
-    } 
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Log In container */}
-      <View style={styles.containerLogIn}>
-        <Text style={styles.logInHeader}>Welcome</Text>
-        <Text style={styles.logInSubHeader}>Log in to your account</Text>
-        
-        <TextInput 
-          style={styles.input}
-          placeholder='Username'
-          placeholderTextColor="#666"
+    <View style={[styles.container, { backgroundColor: theme.fundal }]}>
+      <View
+        style={[
+          styles.containerLogIn,
+          { backgroundColor: theme.card, borderColor: theme.bordura },
+        ]}
+      >
+        <Text style={[styles.logInHeader, { color: theme.accent }]}>
+          Welcome
+        </Text>
+        <Text style={[styles.logInSubHeader, { color: theme.textSecundar }]}>
+          Log in to your account
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.inputBg,
+              color: theme.text,
+              borderColor: theme.bordura,
+            },
+          ]}
+          placeholder="Username"
+          placeholderTextColor={theme.textSecundar}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
         />
-        
         <TextInput
-          style={styles.input}
-          placeholder='Password'
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.inputBg,
+              color: theme.text,
+              borderColor: theme.bordura,
+            },
+          ]}
+          placeholder="Password"
+          placeholderTextColor={theme.textSecundar}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
-
         {checkExisted === false && (
-          <Text style={styles.errorText}>
+          <Text style={[styles.errorText, { color: theme.danger }]}>
             Invalid username or password
           </Text>
         )}
-
-        <TouchableOpacity style={styles.logInButton} onPress={handleLogin}>
-          <Text style={styles.logInButtonText}>Log In</Text>
+        <TouchableOpacity
+          style={[styles.logInButton, { backgroundColor: theme.accent }]}
+          onPress={handleLogin}
+        >
+          <Text style={[styles.logInButtonText, { color: theme.fundal }]}>
+            Log In
+          </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Sign Up container */}
       <View style={styles.containerSignUp}>
-        <Text style={{color: CULORI.griText}}>Don't have an account?</Text>
-          <TouchableOpacity onPress={() => router.push('/SignUpScreen')}>
-            <Text style={styles.signUpText}>Sign Up</Text>
-          </TouchableOpacity>
+        <Text style={{ color: theme.textSecundar }}>
+          Don't have an account?
+        </Text>
+        <TouchableOpacity onPress={() => router.push("/SignUpScreen")}>
+          <Text style={[styles.signUpText, { color: theme.accent }]}>
+            Sign Up
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -83,68 +126,51 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: CULORI.fundal,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   containerLogIn: {
-    width: '85%',
+    width: "85%",
     padding: 25,
     borderWidth: 1,
     borderRadius: 24,
-    borderColor: CULORI.cardBordura,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    elevation: 2,
   },
   logInHeader: {
     fontSize: 32,
-    color: CULORI.auriu,
-    alignSelf: 'center',
-    fontWeight: 'bold',
+    alignSelf: "center",
+    fontWeight: "bold",
   },
   logInSubHeader: {
     fontSize: 14,
-    color: CULORI.griText,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: 30,
   },
   input: {
     height: 55,
-    backgroundColor: CULORI.griInput,
     borderRadius: 12,
     paddingHorizontal: 15,
-    color: CULORI.alb,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
   errorText: {
-    color: CULORI.rosuEroare,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: 10,
     fontSize: 13,
   },
   logInButton: {
-    backgroundColor: CULORI.auriu,
     height: 55,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 10,
   },
-  logInButtonText: {
-    color: CULORI.butonText,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  logInButtonText: { fontSize: 18, fontWeight: "bold" },
   containerSignUp: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 40,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 5,
   },
-  signUpText: {
-    color: CULORI.auriu,
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
-  },
+  signUpText: { fontWeight: "bold", textDecorationLine: "underline" },
 });

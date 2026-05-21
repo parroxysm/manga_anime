@@ -1,19 +1,23 @@
-export const CULORI = {
-  fundal: '#F9F6F1',
-  auriu: '#3C364F',
-  favorite: '#800000',
-  alb: 'white',
-  griText: '#3D3D3D',
-  griInactiv: '#ccc',
-  griSeparator: '#333',
-  cardBordura: '#D0D1AC',
-  cardFundal: '#FFFFFF',
-  butonFundal: 'DDE0BD',
-  griInput: '#2A2A2A',
-  griBordura: '#444444',
-  borduraNav: '#E5E0D8',
-  tabActiv: '#3C364F',
-  tabInactiv: '#A9A9A9',
-  searchContainer: '#7e769a',
-  addDisabled: '#e5e0d837',
+export const LIGHT = {
+  fundal: '#FFFFFF',
+  card: '#FAFAFA',
+  text: '#000000',
+  textSecundar: '#8E8E8E',
+  accent: '#000000',
+  bordura: '#DBDBDB',
+  tabInactiv: '#C7C7C7',
+  inputBg: '#FFFFFF',
+  danger: '#FF3040'
+};
+
+export const DARK = {
+  fundal: '#000000',
+  card: '#121212',
+  text: '#FFFFFF',
+  textSecundar: '#A8A8A8',
+  accent: '#FFFFFF',
+  bordura: '#262626',
+  tabInactiv: '#4D4D4D',
+  inputBg: '#262626',
+  danger: '#FF3040'
 };

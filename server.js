@@ -9,153 +9,48 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-/* =========================
-   REGISTER
-========================= */
 app.post('/register', async (req, res) => { 
   try {
     const { username, password, confirmpassword } = req.body;
-
-    if (!username || !password || !confirmpassword) {
-      return res.json({ success: false });
-    }
-
-    if (password !== confirmpassword) {
-      return res.json({ success: false });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { username }
-    });
-
-    if (existingUser) {
-      return res.json({ success: false });
-    }
-
+    if (!username || !password || !confirmpassword) return res.json({ success: false });
+    if (password !== confirmpassword) return res.json({ success: false });
+    const existingUser = await prisma.user.findUnique({ where: { username } });
+    if (existingUser) return res.json({ success: false });
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    await prisma.user.create({
-      data: {
-        username,
-        password: hashedPassword
-      }
-    });
-
+    await prisma.user.create({ data: { username, password: hashedPassword } });
     return res.json({ success: true });
-
   } catch (err) {
-    console.log(err);
     return res.status(500).json({ success: false });
   }
 });
 
-
-/* =========================
-   LOGIN (IMPORTANT)
-========================= */
-/* =========================
-   LOGIN (DEBUG MODE)
-========================= */
 app.post('/login', async (req, res) => {
-  console.log("=== INCERCARE DE LOGARE ===");
-  console.log("Date primite de la telefon:", req.body);
-
   try {
     const { username, password } = req.body;
-
-    if (!username || !password) {
-      console.log("Eroare: Userul sau parola sunt goale!");
-      return res.json({ success: false });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { username }
-    });
-
-    if (!user) {
-      console.log("Eroare: Username-ul NU exista in baza de date:", `"${username}"`);
-      return res.json({ success: false });
-    }
-
+    if (!username || !password) return res.json({ success: false });
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user) return res.json({ success: false });
     const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
-      console.log("Eroare: Parola este GRESITA pentru userul:", username);
-      return res.json({ success: false });
-    }
-
-    console.log("LOGARE REUSITA! User ID:", user.id);
-    return res.json({
-      success: true,
-      userId: user.id
-    });
-
+    if (!passwordMatch) return res.json({ success: false });
+    return res.json({ success: true, userId: user.id });
   } catch (err) {
-    console.log("Eroare critica la login:", err);
-    return res.status(500).json({ success: false });
-  }
-});
-
-app.delete('/delete-user', async (req, res) => {
-  try {
-    const { username } = req.body;
-
-    if (!username) {
-      return res.json({ success: false, message: "No username provided" });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { username }
-    });
-
-    if (!user) {
-      return res.json({ success: false, message: "User not found" });
-    }
-
-    await prisma.user.delete({
-      where: { username }
-    });
-
-    return res.json({ success: true });
-
-  } catch (err) {
-    console.log(err);
     return res.status(500).json({ success: false });
   }
 });
 
 app.post('/toggle-favorite', async (req, res) => {
-  console.log("BODY RECEIVED:", req.body);
   try {
-    console.log("BODY:", req.body);
-
     const userId = parseInt(req.body.userId, 10);
     const characterId = String(req.body.characterId);
-
-    if (!userId || !characterId) {
-      return res.json({ success: false, message: "Missing data" });
-    }
-
-    const existing = await prisma.favoriteCharacter.findFirst({
-      where: { userId, characterId }
-    });
-
+    if (!userId || !characterId) return res.json({ success: false });
+    const existing = await prisma.favoriteCharacter.findFirst({ where: { userId, characterId } });
     if (existing) {
-      await prisma.favoriteCharacter.deleteMany({
-        where: { userId, characterId }
-      });
-
+      await prisma.favoriteCharacter.deleteMany({ where: { userId, characterId } });
       return res.json({ success: true, action: "removed" });
     }
-
-    await prisma.favoriteCharacter.create({
-      data: { userId, characterId }
-    });
-
+    await prisma.favoriteCharacter.create({ data: { userId, characterId } });
     return res.json({ success: true, action: "added" });
-
   } catch (err) {
-    console.log("TOGGLE ERROR:", err);
     return res.status(500).json({ success: false });
   }
 });
@@ -163,23 +58,123 @@ app.post('/toggle-favorite', async (req, res) => {
 app.get('/favorites', async (req, res) => {
   try {
     const userId = Number(req.query.userId);
-
-    if (!userId) {
-      return res.json({ favorites: [] });
-    }
-
-    const favorites = await prisma.favoriteCharacter.findMany({ 
-      where: { userId }
-    });
-
+    if (!userId) return res.json({ favorites: [] });
+    const favorites = await prisma.favoriteCharacter.findMany({ where: { userId } });
     res.json({ favorites });
   } catch (err) {
-    console.log("ERROR FAVORITES:", err);
+    res.status(500).json({ success: false });
+  }
+});
+
+app.get('/progress', async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    if (!userId) return res.json({ progress: [] });
+    const progress = await prisma.progressItem.findMany({ where: { userId } });
+    res.json({ progress });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.post('/progress', async (req, res) => {
+  try {
+    const { userId, itemId, title, type, image, total, current } = req.body;
+    if (!userId || !itemId) return res.json({ success: false });
+    
+    const existing = await prisma.progressItem.findFirst({ where: { userId, itemId } });
+    if (existing) {
+      const updated = await prisma.progressItem.update({
+        where: { id: existing.id },
+        data: { current: current !== undefined ? current : existing.current }
+      });
+      return res.json({ success: true, item: updated });
+    }
+
+    const newItem = await prisma.progressItem.create({
+      data: { userId, itemId, title, type, image, total, current: current || 0 }
+    });
+    return res.json({ success: true, item: newItem });
+  } catch (err) {
+    return res.status(500).json({ success: false });
+  }
+});
+
+app.delete('/progress', async (req, res) => {
+  try {
+    const { userId, itemId } = req.body;
+    await prisma.progressItem.deleteMany({ where: { userId: Number(userId), itemId: String(itemId) } });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false });
+  }
+});
+
+app.get('/users/search', async (req, res) => {
+  try {
+    const q = req.query.q || '';
+    const userId = Number(req.query.userId);
+    const users = await prisma.user.findMany({
+      where: { username: { contains: q }, NOT: { id: userId } },
+      select: { id: true, username: true }
+    });
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.get('/friends', async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    const friendsData = await prisma.friend.findMany({
+      where: { userId },
+      include: { friend: { select: { id: true, username: true } } }
+    });
+    res.json({ friends: friendsData.map(f => f.friend) });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.post('/friends/add', async (req, res) => {
+  try {
+    const { userId, friendId } = req.body;
+    const existing = await prisma.friend.findFirst({ where: { userId, friendId } });
+    if (!existing) await prisma.friend.create({ data: { userId, friendId } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.delete('/friends/remove', async (req, res) => {
+  try {
+    const { userId, friendId } = req.body;
+    await prisma.friend.deleteMany({ where: { userId, friendId } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.get('/users/:id/details', async (req, res) => {
+  try {
+    const targetId = Number(req.params.id);
+    const user = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { username: true }
+    });
+    if (!user) return res.json({ success: false });
+
+    const favorites = await prisma.favoriteCharacter.findMany({ where: { userId: targetId } });
+    const progress = await prisma.progressItem.findMany({ where: { userId: targetId } });
+
+    res.json({ success: true, user: { username: user.username, favorites, progress } });
+  } catch (err) {
     res.status(500).json({ success: false });
   }
 });
 
 const PORT = 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => {});

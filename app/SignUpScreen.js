@@ -1,103 +1,146 @@
-import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import IP from '../var/IP';
-import {CULORI} from '../var/Culori';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import IP from "../var/IP";
+import { LIGHT, DARK } from "../var/Culori";
 
 export default function SignUpScreen() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [theme, setTheme] = useState(LIGHT);
   const router = useRouter();
 
-  const handleRegister = async () => {
-    // Validări simple pe telefon
-    if (!username || !password || !confirmPassword) {
-      setErrorMessage("Please fill in all fields.");
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
-      return; 
-    }
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("isDarkTheme").then((val) => {
+        setTheme(val === "true" ? DARK : LIGHT);
+      });
+    }, []),
+  );
 
-    if (password.length < 8) {
-      setErrorMessage("Password must be at least 8 characters.");
-      return;
-    }
+  const handleRegister = async () => {
+    if (!username || !password || !confirmPassword)
+      return setErrorMessage("Please fill in all fields.");
+    if (password !== confirmPassword)
+      return setErrorMessage("Passwords do not match.");
+    if (password.length < 8)
+      return setErrorMessage("Password must be at least 8 characters.");
 
     try {
       const response = await fetch(`${IP}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
-        body: JSON.stringify({ 
-          username: username.trim(), 
-          password: password,
-          confirmpassword: confirmPassword 
-        })
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+          confirmpassword: confirmPassword,
+        }),
       });
-      
       const data = await response.json();
-
       if (data.success) {
-        router.replace('/logInScreen');
+        router.replace("/logInScreen");
       } else {
         setErrorMessage("Username already exists or registration failed.");
       }
     } catch (error) {
-      console.log(error);
       setErrorMessage("Network error. Please try again.");
-    } 
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.containerSignUpBox}>
-        <Text style={styles.signUpHeader}>Create Account</Text>
-        <Text style={styles.signUpSubHeader}>Join us and save your favorites</Text>
-        
-        <TextInput 
-          style={styles.input}
-          placeholder='Username'
-          placeholderTextColor="#666"
+    <View style={[styles.container, { backgroundColor: theme.fundal }]}>
+      <View
+        style={[
+          styles.containerSignUpBox,
+          { backgroundColor: theme.card, borderColor: theme.bordura },
+        ]}
+      >
+        <Text style={[styles.signUpHeader, { color: theme.accent }]}>
+          Create Account
+        </Text>
+        <Text style={[styles.signUpSubHeader, { color: theme.textSecundar }]}>
+          Join us and save your favorites
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.inputBg,
+              color: theme.text,
+              borderColor: theme.bordura,
+            },
+          ]}
+          placeholder="Username"
+          placeholderTextColor={theme.textSecundar}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
         />
-        
         <TextInput
-          style={styles.input}
-          placeholder='Password'
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.inputBg,
+              color: theme.text,
+              borderColor: theme.bordura,
+            },
+          ]}
+          placeholder="Password"
+          placeholderTextColor={theme.textSecundar}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
-
         <TextInput
-          style={styles.input}
-          placeholder='Confirm Password'
-          placeholderTextColor="#666"
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.inputBg,
+              color: theme.text,
+              borderColor: theme.bordura,
+            },
+          ]}
+          placeholder="Confirm Password"
+          placeholderTextColor={theme.textSecundar}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
         />
-
-        {errorMessage !== '' && (
-          <Text style={styles.errorText}>{errorMessage}</Text>
+        {errorMessage !== "" && (
+          <Text style={[styles.errorText, { color: theme.danger }]}>
+            {errorMessage}
+          </Text>
         )}
-
-        <TouchableOpacity style={styles.signUpButton} onPress={handleRegister}>
-          <Text style={styles.signUpButtonText}>Register</Text>
+        <TouchableOpacity
+          style={[styles.signUpButton, { backgroundColor: theme.accent }]}
+          onPress={handleRegister}
+        >
+          <Text style={[styles.signUpButtonText, { color: theme.fundal }]}>
+            Register
+          </Text>
         </TouchableOpacity>
       </View>
-
       <View style={styles.containerLogInSwitch}>
-        <Text style={{color: CULORI.griText}}>Already have an account?</Text>
+        <Text style={{ color: theme.textSecundar }}>
+          Already have an account?
+        </Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.logInText}>Log In</Text>
+          <Text style={[styles.logInText, { color: theme.accent }]}>
+            Log In
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -105,71 +148,42 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: CULORI.fundal,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1, alignItems: "center", justifyContent: "center" },
   containerSignUpBox: {
-    width: '85%',
+    width: "85%",
     padding: 25,
     borderWidth: 1,
     borderRadius: 24,
-    borderColor: CULORI.cardBordura,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    elevation: 2,
   },
-  signUpHeader: {
-    fontSize: 32,
-    color: CULORI.auriu,
-    alignSelf: 'center',
-    fontWeight: 'bold',
-  },
-  signUpSubHeader: {
-    fontSize: 14,
-    color: CULORI.griText,
-    alignSelf: 'center',
-    marginBottom: 30,
-  },
+  signUpHeader: { fontSize: 32, alignSelf: "center", fontWeight: "bold" },
+  signUpSubHeader: { fontSize: 14, alignSelf: "center", marginBottom: 30 },
   input: {
     height: 55,
-    backgroundColor: CULORI.griInput,
     borderRadius: 12,
     paddingHorizontal: 15,
-    color: CULORI.alb,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
   errorText: {
-    color: CULORI.rosuEroare,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: 10,
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
   },
   signUpButton: {
-    backgroundColor: CULORI.auriu,
     height: 55,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 10,
   },
-  signUpButtonText: {
-    color: CULORI.butonText,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  signUpButtonText: { fontSize: 18, fontWeight: "bold" },
   containerLogInSwitch: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 40,
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 5,
   },
-  logInText: {
-    color: CULORI.auriu,
-    fontWeight: 'bold',
-    textDecorationLine: 'underline',
-  },
+  logInText: { fontWeight: "bold", textDecorationLine: "underline" },
 });

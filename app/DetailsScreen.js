@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View, TouchableOpacity, FlatList, ActivityIndicator, TextInput } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import IP from '../var/IP';
 import { LIGHT, DARK } from '../var/Culori';
 
@@ -13,6 +14,12 @@ export default function DetailsScreen() {
   const [extraData, setExtraData] = useState(null);
   const [relatedItems, setRelatedItems] = useState([]);
   const [loadingExtras, setLoadingExtras] = useState(true);
+  
+  const [comments, setComments] = useState([]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [newCommentRating, setNewCommentRating] = useState(0);
+  const [loadingComments, setLoadingComments] = useState(true);
+
   const [toastMessage, setToastMessage] = useState('');
   const toastTimeout = useRef(null);
 
@@ -60,6 +67,24 @@ export default function DetailsScreen() {
     fetchDetails();
   }, [item.actualId, item.type]);
 
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (!item.id) return;
+      try {
+        setLoadingComments(true);
+        const res = await fetch(`${IP}/comments/${item.id}`);
+        const data = await res.json();
+        if (data.success) {
+          setComments(data.comments);
+        }
+      } catch (error) {
+      } finally {
+        setLoadingComments(false);
+      }
+    };
+    fetchComments();
+  }, [item.id]);
+
   const addToProgress = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -96,6 +121,69 @@ export default function DetailsScreen() {
     }
   };
 
+  const submitComment = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        showToast("Please log in to comment");
+        return;
+      }
+      if (!newCommentText.trim()) {
+        showToast("Please write a comment");
+        return;
+      }
+      if (newCommentRating === 0) {
+        showToast("Please select a rating");
+        return;
+      }
+
+      const res = await fetch(`${IP}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: Number(userId),
+          itemId: item.id,
+          itemName: item.name,
+          type: item.type,
+          rating: newCommentRating,
+          text: newCommentText.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setComments([data.comment, ...comments]);
+        setNewCommentText('');
+        setNewCommentRating(0);
+        showToast("Comment posted!");
+      } else {
+        showToast("Failed to post comment");
+      }
+    } catch (error) {
+      showToast("Network error.");
+    }
+  };
+
+  const renderStars = (rating, interactive = false) => {
+    return (
+      <View style={styles.starsRow}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <TouchableOpacity 
+            key={star} 
+            disabled={!interactive} 
+            onPress={() => interactive && setNewCommentRating(star)}
+          >
+            <Ionicons 
+              name={star <= rating ? "star" : "star-outline"} 
+              size={interactive ? 30 : 16} 
+              color={theme.accent} 
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.background, { backgroundColor: theme.fundal }]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -129,6 +217,46 @@ export default function DetailsScreen() {
               <Text style={[styles.textButonProgres, { color: theme.fundal }]}>+ Add to your list</Text>
             </TouchableOpacity>
           )}
+
+          <View style={styles.reviewsSection}>
+            <Text style={[styles.relatedTitle, { color: theme.text }]}>Reviews</Text>
+            
+            <View style={[styles.addCommentContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+              <Text style={[styles.addCommentTitle, { color: theme.text }]}>Leave a review</Text>
+              <View style={styles.interactiveStarsContainer}>
+                {renderStars(newCommentRating, true)}
+              </View>
+              <TextInput
+                style={[styles.commentInput, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.bordura }]}
+                placeholder="Write your thoughts..."
+                placeholderTextColor={theme.textSecundar}
+                multiline
+                numberOfLines={3}
+                value={newCommentText}
+                onChangeText={setNewCommentText}
+              />
+              <TouchableOpacity style={[styles.submitCommentButton, { backgroundColor: theme.accent }]} onPress={submitComment}>
+                <Text style={[styles.submitCommentText, { color: theme.fundal }]}>Post Review</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingComments ? (
+              <ActivityIndicator size="small" color={theme.accent} style={{ marginTop: 20 }} />
+            ) : comments.length > 0 ? (
+              comments.map((c) => (
+                <View key={c.id} style={[styles.commentCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+                  <View style={styles.commentHeader}>
+                    <Text style={[styles.commentUser, { color: theme.accent }]}>{c.user.username}</Text>
+                    {renderStars(c.rating)}
+                  </View>
+                  <Text style={[styles.commentDate, { color: theme.textSecundar }]}>{new Date(c.createdAt).toLocaleDateString()}</Text>
+                  <Text style={[styles.commentText, { color: theme.text }]}>{c.text}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={[styles.noCommentsText, { color: theme.textSecundar }]}>No reviews yet. Be the first!</Text>
+            )}
+          </View>
 
           {loadingExtras ? (
             <ActivityIndicator size="large" color={theme.accent} style={{ marginTop: 30 }} />
@@ -242,6 +370,78 @@ const styles = StyleSheet.create({
   textButonProgres: {
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  reviewsSection: {
+    marginTop: 30,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  addCommentContainer: {
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  addCommentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  interactiveStarsContainer: {
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 15,
+    height: 100,
+    textAlignVertical: 'top',
+    marginBottom: 15,
+  },
+  submitCommentButton: {
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  submitCommentText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  commentCard: {
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  commentUser: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  commentDate: {
+    fontSize: 11,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  commentText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  noCommentsText: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginTop: 10,
   },
   relatedSection: {
     marginTop: 30,

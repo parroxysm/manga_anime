@@ -158,6 +158,16 @@ export default function SettingsScreen() {
     }
   };
 
+  const renderStars = (rating) => {
+    return (
+      <View style={{ flexDirection: 'row', gap: 2 }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Ionicons key={star} name={star <= rating ? "star" : "star-outline"} size={14} color={theme.accent} />
+        ))}
+      </View>
+    );
+  };
+
   const animeFavs = friendFavorites.filter(f => f.type === 'anime');
   const mangaFavs = friendFavorites.filter(f => f.type === 'manga');
   const charFavs = friendFavorites.filter(f => f.type === 'characters');
@@ -217,6 +227,22 @@ export default function SettingsScreen() {
             
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
               
+              <Text style={[styles.sectionTitleModal, { color: theme.text }]}>Reviews & Comments <Text style={{color: theme.textSecundar, fontSize: 16}}>({selectedFriend?.comments?.length || 0})</Text></Text>
+              {selectedFriend?.comments?.length > 0 ? (
+                <View style={styles.commentsListContainer}>
+                  {selectedFriend.comments.map((comment) => (
+                    <View key={comment.id} style={[styles.profileCommentCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+                      <View style={styles.profileCommentHeader}>
+                        <Text style={[styles.profileCommentItemName, { color: theme.accent }]} numberOfLines={1}>{comment.itemName}</Text>
+                        {renderStars(comment.rating)}
+                      </View>
+                      <Text style={[styles.profileCommentDate, { color: theme.textSecundar }]}>{new Date(comment.createdAt).toLocaleDateString()}</Text>
+                      <Text style={[styles.profileCommentText, { color: theme.text }]}>{comment.text}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (<Text style={[styles.emptyModalText, { color: theme.textSecundar }]}>No reviews posted yet.</Text>)}
+
               <Text style={[styles.sectionTitleModal, { color: theme.text }]}>In Progress <Text style={{color: theme.textSecundar, fontSize: 16}}>({selectedFriend?.progress?.length || 0})</Text></Text>
               {selectedFriend?.progress?.length > 0 ? (
                 <FlatList horizontal showsHorizontalScrollIndicator={false} data={selectedFriend.progress} keyExtractor={(it) => it.id.toString()} contentContainerStyle={{ paddingRight: 20 }}
@@ -443,6 +469,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     fontWeight: 'bold',
+  },
+  commentsListContainer: {
+    paddingHorizontal: 20,
+  },
+  profileCommentCard: {
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  profileCommentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  profileCommentItemName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    flex: 1,
+    marginRight: 10,
+  },
+  profileCommentDate: {
+    fontSize: 11,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  profileCommentText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   emptyModalText: {
     marginHorizontal: 20,

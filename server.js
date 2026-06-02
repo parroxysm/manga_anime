@@ -172,8 +172,47 @@ app.get('/users/:id/details', async (req, res) => {
 
     const favorites = await prisma.favoriteCharacter.findMany({ where: { userId: targetId } });
     const progress = await prisma.progressItem.findMany({ where: { userId: targetId } });
+    const comments = await prisma.comment.findMany({
+      where: { userId: targetId },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    res.json({ success: true, user: { username: user.username, favorites, progress } });
+    res.json({ success: true, user: { username: user.username, favorites, progress, comments } });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.get('/comments/:itemId', async (req, res) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { itemId: req.params.itemId },
+      include: { user: { select: { username: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, comments });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.post('/comments', async (req, res) => {
+  try {
+    const { userId, itemId, itemName, type, rating, text } = req.body;
+    if (!userId || !itemId || !rating || !text) return res.json({ success: false });
+    
+    const comment = await prisma.comment.create({
+      data: {
+        userId: Number(userId),
+        itemId: String(itemId),
+        itemName: String(itemName),
+        type: String(type),
+        rating: Number(rating),
+        text: String(text)
+      },
+      include: { user: { select: { username: true } } }
+    });
+    res.json({ success: true, comment });
   } catch (err) {
     res.status(500).json({ success: false });
   }

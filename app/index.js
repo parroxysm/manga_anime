@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
 import FavoritesScreen from './favoriteScreen';
 import SearchScreen from './SearchScreen';
 import ProgressScreen from './ProgressScreen';
@@ -12,6 +12,43 @@ import IP from '../var/IP';
 import { LIGHT, DARK } from '../var/Culori';
 
 const Tab = createBottomTabNavigator();
+
+const AnimatedCard = ({ item, theme, favorites, toggleFavorite, router }) => {
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(scaleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true })
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity: opacityAnim, transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity 
+        style={[styles.itemsCard, { backgroundColor: theme.card, borderColor: theme.bordura }]} 
+        onPress={() => router.push({ pathname: '/DetailsScreen', params: item })}
+      >
+        <Image source={{ uri: item.image }} style={[styles.imageAnimeCard, { borderColor: theme.bordura }]} />
+        <View style={styles.infoAnimeCard}>
+          <View style={styles.nameAndFavoriteContainer}>
+            <Text style={[styles.titluAnimeCard, { color: theme.accent }]} numberOfLines={1}>{item.name}</Text>
+            <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+              <Ionicons 
+                name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
+                size={28} 
+                color={favorites.includes(item.id) ? theme.danger : theme.bordura} 
+              />
+            </TouchableOpacity>
+          </View>
+          {item.score && <Text style={[styles.scoreText, { color: theme.accent }]}>⭐ {item.score}</Text>}
+          <Text style={[styles.informatiiAnimeCard, { color: theme.textSecundar }]} numberOfLines={3}>{item.about}</Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 const HomePage = () => {
   const router = useRouter();
@@ -153,26 +190,7 @@ const HomePage = () => {
           refreshing={loading}
           contentContainerStyle={{ paddingBottom: 20 }}
           renderItem={({ item }) => (
-            <TouchableOpacity 
-              style={[styles.itemsCard, { backgroundColor: theme.card, borderColor: theme.bordura }]} 
-              onPress={() => router.push({ pathname: '/DetailsScreen', params: item })}
-            >
-              <Image source={{ uri: item.image }} style={[styles.imageAnimeCard, { borderColor: theme.bordura }]} />
-              <View style={styles.infoAnimeCard}>
-                <View style={styles.nameAndFavoriteContainer}>
-                  <Text style={[styles.titluAnimeCard, { color: theme.accent }]} numberOfLines={1}>{item.name}</Text>
-                  <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                    <Ionicons 
-                      name={favorites.includes(item.id) ? "heart" : "heart-outline"} 
-                      size={28} 
-                      color={favorites.includes(item.id) ? theme.danger : theme.bordura} 
-                    />
-                  </TouchableOpacity>
-                </View>
-                {item.score && <Text style={[styles.scoreText, { color: theme.accent }]}>⭐ {item.score}</Text>}
-                <Text style={[styles.informatiiAnimeCard, { color: theme.textSecundar }]} numberOfLines={3}>{item.about}</Text>
-              </View>
-            </TouchableOpacity>
+            <AnimatedCard item={item} theme={theme} favorites={favorites} toggleFavorite={toggleFavorite} router={router} />
           )}
         />
       )}
@@ -186,8 +204,9 @@ const HomePage = () => {
   );
 };
 
-export default function Main(){
+export default function Main() {
   const [theme, setTheme] = useState(LIGHT);
+  const router = useRouter();
 
   useFocusEffect(
     useCallback(() => {
@@ -195,28 +214,37 @@ export default function Main(){
     }, [])
   );
 
-  return(
-    <Tab.Navigator screenOptions={({ route }) => ({ 
-      headerShown: true, 
-      tabBarStyle: { backgroundColor: theme.card, borderTopColor: theme.bordura },
-      headerStyle: { backgroundColor: theme.fundal, elevation: 0, shadowOpacity: 0 },
-      headerTintColor: theme.text,
-      headerTitleAlign: 'center',
-      tabBarIcon: ({ color, size }) => {
-        let iconName = 'home';
-        if (route.name === 'Search') iconName = 'search';
-        else if (route.name === 'Favorites') iconName = 'heart';
-        else if (route.name === 'Progress') iconName = 'list';
-        return <Ionicons name={iconName} size={size} color={color} />;
-      },
-      tabBarActiveTintColor: theme.accent,
-      tabBarInactiveTintColor: theme.tabInactiv,
-    })}>
-      <Tab.Screen name="Home" component={HomePage} />
-      <Tab.Screen name="Search" component={SearchScreen} options={{headerShown: false}} />
-      <Tab.Screen name="Favorites" component={FavoritesScreen} />
-      <Tab.Screen name="Progress" component={ProgressScreen} options={{headerShown: false}}/>
-    </Tab.Navigator>
+  return (
+    <>
+      <Tab.Navigator screenOptions={({ route }) => ({ 
+        headerShown: true, 
+        tabBarStyle: { backgroundColor: theme.card, borderTopColor: theme.bordura },
+        headerStyle: { backgroundColor: theme.fundal, elevation: 0, shadowOpacity: 0 },
+        headerTintColor: theme.text,
+        headerTitleAlign: 'center',
+        tabBarIcon: ({ color, size }) => {
+          let iconName = 'home';
+          if (route.name === 'Search') iconName = 'search';
+          else if (route.name === 'Favorites') iconName = 'heart';
+          else if (route.name === 'Progress') iconName = 'list';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: theme.tabInactiv,
+      })}>
+        <Tab.Screen name="Home" component={HomePage} />
+        <Tab.Screen name="Search" component={SearchScreen} options={{headerShown: false}} />
+        <Tab.Screen name="Favorites" component={FavoritesScreen} />
+        <Tab.Screen name="Progress" component={ProgressScreen} options={{headerShown: false}}/>
+      </Tab.Navigator>
+      
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: theme.accent }]} 
+        onPress={() => router.push('/AiChatScreen')}
+      >
+        <Ionicons name="chatbubbles" size={28} color={theme.fundal} />
+      </TouchableOpacity>
+    </>
   );
 }
 
@@ -302,4 +330,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  fab: {
+    position: 'absolute',
+    bottom: 70,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  }
 });

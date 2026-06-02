@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState, useRef } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, TextInput, FlatList, Modal, Image, SafeAreaView } from 'react-native';
+import { useCallback, useState, useRef, useEffect } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, TextInput, FlatList, Modal, Image, SafeAreaView, Platform, StatusBar, Animated, Alert } from 'react-native';
 import IP from '../var/IP';
 import { LIGHT, DARK } from '../var/Culori';
 
@@ -20,11 +20,15 @@ export default function SettingsScreen() {
   const [friends, setFriends] = useState([]);
   const [toastMessage, setToastMessage] = useState('');
   const toastTimeout = useRef(null);
-  
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [loadingFriend, setLoadingFriend] = useState(false);
   const [friendFavorites, setFriendFavorites] = useState([]);
+  const [quizData, setQuizData] = useState(null);
+  const [manualCharInput, setManualCharInput] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const showToast = (message) => {
     setToastMessage(message);
@@ -38,10 +42,14 @@ export default function SettingsScreen() {
       const storedUserId = await AsyncStorage.getItem('userId');
       const storedUsername = await AsyncStorage.getItem('username');
       const themePref = await AsyncStorage.getItem('isDarkTheme');
+      const storedQuiz = await AsyncStorage.getItem('quizResult');
+      
       const uid = storedUserId ? Number(storedUserId) : null;
       if (!uid) { router.replace('/logInScreen'); return; }
+      
       setUserId(uid);
       if (storedUsername) setUsername(storedUsername);
+      if (storedQuiz) setQuizData(JSON.parse(storedQuiz));
       if (themePref !== null) {
         const isDark = JSON.parse(themePref);
         setIsDarkTheme(isDark);
@@ -67,6 +75,7 @@ export default function SettingsScreen() {
     } catch (error) {
     } finally {
       setLoading(false);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     }
   };
 
@@ -108,6 +117,20 @@ export default function SettingsScreen() {
     } catch (e) {
       showToast("Failed to add friend");
     }
+  };
+
+  const resetQuiz = async () => {
+    await AsyncStorage.removeItem('quizResult');
+    setQuizData(null);
+  };
+
+  const setManualCharacter = async () => {
+    if(!manualCharInput.trim()) return;
+    const manualData = { character: manualCharInput, anime: "Custom", reason: "Manually selected" };
+    await AsyncStorage.setItem('quizResult', JSON.stringify(manualData));
+    setQuizData(manualData);
+    setShowManualInput(false);
+    setManualCharInput('');
   };
 
   const fetchFriendFavoritesDetails = async (favIds) => {
@@ -177,46 +200,99 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.background, { backgroundColor: theme.fundal }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.profileSection}><Text style={[styles.usernameText, { color: theme.accent }]}>{username}</Text></View>
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="people" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedCharacters}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Chars</Text></View>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="book" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedManga}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Manga</Text></View>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="tv" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedAnime}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Anime</Text></View>
-          <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="trending-up" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.inProgress}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Progress</Text></View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: theme.textSecundar }]}>Community</Text>
-        <View style={[styles.actionsContainer, { backgroundColor: theme.card, borderColor: theme.bordura, padding: 15, marginBottom: 20 }]}>
-          <View style={styles.searchRow}>
-            <TextInput style={[styles.searchInput, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.bordura }]} placeholder="Search users..." placeholderTextColor={theme.textSecundar} value={searchQuery} onChangeText={setSearchQuery} />
-            <TouchableOpacity style={[styles.searchBtn, { backgroundColor: theme.accent }]} onPress={searchUsers}><Ionicons name="search" size={20} color={theme.fundal} /></TouchableOpacity>
+        <Animated.View style={{ opacity: fadeAnim }}>
+          
+          <View style={styles.profileSection}>
+            <Text style={[styles.usernameText, { color: theme.accent }]}>{username}</Text>
           </View>
-          {searchResults.map(u => (
-            <View key={u.id} style={[styles.userRow, { borderColor: theme.bordura }]}>
-              <Text style={{color: theme.text}}>{u.username}</Text>
-              {!friends.some(f => f.id === u.id) && <TouchableOpacity onPress={() => addFriend(u.id)}><Ionicons name="person-add" size={20} color={theme.accent} /></TouchableOpacity>}
+
+          <View style={[styles.quizResultContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+            {quizData ? (
+              <>
+                <Text style={[styles.quizTitle, { color: theme.textSecundar }]}>Personality Match</Text>
+                <Text style={[styles.quizCharacter, { color: theme.text }]}>{quizData.character} <Text style={{fontSize: 14, color: theme.accent, fontWeight: 'normal'}}>({quizData.anime})</Text></Text>
+                {quizData.reason !== "Manually selected" && (
+                  <Text style={[styles.quizReason, { color: theme.textSecundar }]}>{quizData.reason}</Text>
+                )}
+                <View style={styles.quizSubtleActions}>
+                  <TouchableOpacity onPress={resetQuiz}>
+                    <Text style={[styles.subtleText, { color: theme.textSecundar }]}>Retake Quiz</Text>
+                  </TouchableOpacity>
+                  <Text style={{color: theme.bordura}}> • </Text>
+                  <TouchableOpacity onPress={() => setShowManualInput(!showManualInput)}>
+                    <Text style={[styles.subtleText, { color: theme.textSecundar }]}>Set Manually</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.quizTitle, { color: theme.textSecundar, marginBottom: 15 }]}>Discover your inner character</Text>
+                <TouchableOpacity style={[styles.takeQuizBtn, { backgroundColor: theme.accent }]} onPress={() => router.push('/QuizScreen')}>
+                  <Text style={[styles.takeQuizText, { color: theme.fundal }]}>Start Personality Quiz</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{marginTop: 15}} onPress={() => setShowManualInput(!showManualInput)}>
+                  <Text style={[styles.subtleText, { color: theme.textSecundar, textAlign: 'center' }]}>Or set it manually</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {showManualInput && (
+              <View style={styles.manualInputRow}>
+                <TextInput 
+                  style={[styles.manualInput, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.bordura }]} 
+                  placeholder="Character name..." 
+                  placeholderTextColor={theme.textSecundar}
+                  value={manualCharInput}
+                  onChangeText={setManualCharInput}
+                />
+                <TouchableOpacity style={[styles.manualBtn, { backgroundColor: theme.accent }]} onPress={setManualCharacter}>
+                  <Text style={{color: theme.fundal, fontWeight: 'bold'}}>Set</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.statsContainer}>
+            <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="people" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedCharacters}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Chars</Text></View>
+            <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="book" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedManga}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Manga</Text></View>
+            <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="tv" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.likedAnime}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Anime</Text></View>
+            <View style={[styles.statCard, { backgroundColor: theme.card, borderColor: theme.bordura }]}><Ionicons name="trending-up" size={28} color={theme.accent} /><Text style={[styles.statNumber, { color: theme.text }]}>{stats.inProgress}</Text><Text style={[styles.statLabel, { color: theme.textSecundar }]}>Progress</Text></View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: theme.textSecundar }]}>Community</Text>
+          <View style={[styles.actionsContainer, { backgroundColor: theme.card, borderColor: theme.bordura, padding: 15, marginBottom: 20 }]}>
+            <View style={styles.searchRow}>
+              <TextInput style={[styles.searchInput, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.bordura }]} placeholder="Search users..." placeholderTextColor={theme.textSecundar} value={searchQuery} onChangeText={setSearchQuery} />
+              <TouchableOpacity style={[styles.searchBtn, { backgroundColor: theme.accent }]} onPress={searchUsers}><Ionicons name="search" size={20} color={theme.fundal} /></TouchableOpacity>
             </View>
-          ))}
-          <Text style={[styles.sectionTitle, { color: theme.textSecundar, marginTop: 15, marginLeft: 0 }]}>Friends List</Text>
-          {friends.length === 0 && <Text style={{color: theme.textSecundar, fontSize: 13, marginTop: 5}}>No friends added yet.</Text>}
-          {friends.map(f => (
-            <TouchableOpacity key={f.id} style={[styles.friendRow, { borderColor: theme.bordura }]} onPress={() => viewFriendDetails(f.id)}>
-              <Text style={{color: theme.text, fontWeight: 'bold'}}>{f.username}</Text>
-              <Ionicons name="chevron-forward" size={20} color={theme.accent} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: theme.textSecundar }]}>Preferences</Text>
-        <View style={[styles.actionsContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
-          <View style={[styles.actionRow, { borderBottomColor: theme.bordura }]}>
-            <View style={styles.actionLeft}><Ionicons name={isDarkTheme ? "moon" : "sunny"} size={22} color={theme.accent} /><Text style={[styles.actionText, { color: theme.text }]}>Dark Theme</Text></View>
-            <Switch value={isDarkTheme} onValueChange={toggleTheme} trackColor={{ false: theme.bordura, true: theme.accent }} thumbColor={"#FFFFFF"} />
+            {searchResults.map(u => (
+              <View key={u.id} style={[styles.userRow, { borderColor: theme.bordura }]}>
+                <Text style={{color: theme.text}}>{u.username}</Text>
+                {!friends.some(f => f.id === u.id) && <TouchableOpacity onPress={() => addFriend(u.id)}><Ionicons name="person-add" size={20} color={theme.accent} /></TouchableOpacity>}
+              </View>
+            ))}
+            <Text style={[styles.sectionTitle, { color: theme.textSecundar, marginTop: 15, marginLeft: 0 }]}>Friends List</Text>
+            {friends.length === 0 && <Text style={{color: theme.textSecundar, fontSize: 13, marginTop: 5}}>No friends added yet.</Text>}
+            {friends.map(f => (
+              <TouchableOpacity key={f.id} style={[styles.friendRow, { borderColor: theme.bordura }]} onPress={() => viewFriendDetails(f.id)}>
+                <Text style={{color: theme.text, fontWeight: 'bold'}}>{f.username}</Text>
+                <Ionicons name="chevron-forward" size={20} color={theme.accent} />
+              </TouchableOpacity>
+            ))}
           </View>
-          <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
-            <View style={styles.actionLeft}><Ionicons name="log-out-outline" size={24} color={theme.danger} /><Text style={[styles.actionText, { color: theme.danger }]}>Log Out</Text></View>
-          </TouchableOpacity>
-        </View>
+
+          <Text style={[styles.sectionTitle, { color: theme.textSecundar }]}>Preferences</Text>
+          <View style={[styles.actionsContainer, { backgroundColor: theme.card, borderColor: theme.bordura }]}>
+            <View style={[styles.actionRow, { borderBottomColor: theme.bordura }]}>
+              <View style={styles.actionLeft}><Ionicons name={isDarkTheme ? "moon" : "sunny"} size={22} color={theme.accent} /><Text style={[styles.actionText, { color: theme.text }]}>Dark Theme</Text></View>
+              <Switch value={isDarkTheme} onValueChange={toggleTheme} trackColor={{ false: theme.bordura, true: theme.accent }} thumbColor={"#FFFFFF"} />
+            </View>
+            <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
+              <View style={styles.actionLeft}><Ionicons name="log-out-outline" size={24} color={theme.danger} /><Text style={[styles.actionText, { color: theme.danger }]}>Log Out</Text></View>
+            </TouchableOpacity>
+          </View>
+
+        </Animated.View>
 
         <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
           <View style={[styles.modalContainer, { backgroundColor: theme.fundal }]}>
@@ -309,6 +385,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   container: {
     padding: 20,
@@ -321,11 +398,71 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'flex-start',
     marginTop: 10,
-    marginBottom: 25,
+    marginBottom: 20,
   },
   usernameText: {
     fontSize: 32,
     fontWeight: 'bold',
+  },
+  quizResultContainer: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 25,
+  },
+  quizTitle: {
+    fontSize: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  quizCharacter: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  quizReason: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 15,
+  },
+  quizSubtleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  subtleText: {
+    fontSize: 12,
+    textDecorationLine: 'underline',
+  },
+  takeQuizBtn: {
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  takeQuizText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    marginTop: 15,
+  },
+  manualInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  manualBtn: {
+    marginLeft: 10,
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
   },
   statsContainer: {
     flexDirection: 'row',

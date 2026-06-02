@@ -11,6 +11,8 @@ model User {
   id                Int                 @id @default(autoincrement())
   username          String              @unique
   password          String
+  quizCharacter     String?
+  quizImage         String?
   createdAt         DateTime            @default(now())
   favoriteCharacters FavoriteCharacter[]
   progressItems      ProgressItem[]

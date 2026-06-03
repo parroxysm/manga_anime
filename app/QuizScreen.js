@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, ActivityIndicator, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import IP from '../var/IP';
 import { LIGHT, DARK } from '../var/Culori';
 
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -80,7 +81,30 @@ export default function QuizScreen() {
       const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedData = JSON.parse(responseText);
 
-      await AsyncStorage.setItem('quizResult', JSON.stringify(parsedData));
+      let imageUrl = null;
+      try {
+        const jikanRes = await fetch(`https://api.jikan.moe/v4/characters?q=${parsedData.character}&limit=1`);
+        const jikanData = await jikanRes.json();
+        if (jikanData.data && jikanData.data.length > 0) {
+          imageUrl = jikanData.data[0].images?.jpg?.image_url || null;
+        }
+      } catch (e) {}
+
+      const userId = await AsyncStorage.getItem('userId');
+      if (userId) {
+        await fetch(`${IP}/quiz`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: Number(userId), 
+            character: parsedData.character, 
+            anime: parsedData.anime, 
+            reason: parsedData.reason, 
+            image: imageUrl 
+          })
+        });
+      }
+
       router.back();
     } catch (error) {
       setLoading(false);

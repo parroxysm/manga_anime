@@ -2,14 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 app.use(cors());
 app.use(express.json());
@@ -86,8 +81,10 @@ app.post('/progress', async (req, res) => {
   try {
     const { userId, itemId, title, type, image, total, current } = req.body;
     if (!userId || !itemId) return res.json({ success: false });
+    
     const parsedTotal = total ? parseInt(total, 10) : null;
     const parsedCurrent = current !== undefined ? parseInt(current, 10) : 0;
+
     const existing = await prisma.progressItem.findFirst({ where: { userId, itemId } });
     if (existing) {
       const updated = await prisma.progressItem.update({
@@ -96,6 +93,7 @@ app.post('/progress', async (req, res) => {
       });
       return res.json({ success: true, item: updated });
     }
+
     const newItem = await prisma.progressItem.create({
       data: { userId, itemId, title, type, image, total: parsedTotal, current: parsedCurrent }
     });
@@ -168,76 +166,27 @@ app.get('/users/:id/details', async (req, res) => {
     const targetId = Number(req.params.id);
     const user = await prisma.user.findUnique({
       where: { id: targetId },
-      select: { username: true, quizCharacter: true, quizImage: true }
+      select: { username: true, quizCharacter: true, quizAnime: true, quizReason: true, quizImage: true }
     });
     if (!user) return res.json({ success: false });
+
     const favorites = await prisma.favoriteCharacter.findMany({ where: { userId: targetId } });
     const progress = await prisma.progressItem.findMany({ where: { userId: targetId } });
     const comments = await prisma.comment.findMany({
       where: { userId: targetId },
       orderBy: { createdAt: 'desc' }
     });
-    res.json({ success: true, user: { ...user, favorites, progress, comments } });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
-});
 
-app.get('/profile/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: { quizCharacter: true, quizImage: true }
-    });
-    res.json({ success: true, profile: user });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
-});
-
-app.post('/profile/quiz', async (req, res) => {
-  try {
-    const { userId, character, image } = req.body;
-    await prisma.user.update({
-      where: { id: Number(userId) },
-      data: { quizCharacter: character, quizImage: image }
-    });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
-});
-
-app.delete('/profile/quiz', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    await prisma.user.update({
-      where: { id: Number(userId) },
-      data: { quizCharacter: null, quizImage: null }
-    });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ success: false });
-  }
-});
-
-app.post('/comments', async (req, res) => {
-  try {
-    const { userId, itemId, itemName, type, rating, text } = req.body;
-    if (!userId || !itemId || !rating || !text) return res.json({ success: false });
-    const comment = await prisma.comment.create({
-      data: {
-        userId: Number(userId),
-        itemId: String(itemId),
-        itemName: String(itemName),
-        type: String(type),
-        rating: Number(rating),
-        text: String(text)
-      },
-      include: { user: { select: { username: true } } }
-    });
-    res.json({ success: true, comment });
+    res.json({ success: true, user: { 
+      username: user.username, 
+      quizCharacter: user.quizCharacter, 
+      quizAnime: user.quizAnime, 
+      quizReason: user.quizReason, 
+      quizImage: user.quizImage,
+      favorites, 
+      progress, 
+      comments 
+    }});
   } catch (err) {
     res.status(500).json({ success: false });
   }
@@ -256,41 +205,64 @@ app.get('/comments/:itemId', async (req, res) => {
   }
 });
 
-app.post('/ai/chat', async (req, res) => {
+app.post('/comments', async (req, res) => {
   try {
-    const { message } = req.body;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Ești un asistent expert în manga și anime. Răspunde concis, prietenos și la obiect. Întrebarea: ${message}`
+    const { userId, itemId, itemName, type, rating, text } = req.body;
+    if (!userId || !itemId || !rating || !text) return res.json({ success: false });
+    
+    const comment = await prisma.comment.create({
+      data: {
+        userId: Number(userId),
+        itemId: String(itemId),
+        itemName: String(itemName),
+        type: String(type),
+        rating: Number(rating),
+        text: String(text)
+      },
+      include: { user: { select: { username: true } } }
     });
-    res.json({ success: true, reply: response.text });
-  } catch (error) {
+    res.json({ success: true, comment });
+  } catch (err) {
     res.status(500).json({ success: false });
   }
 });
 
-app.post('/ai/quiz', async (req, res) => {
+app.post('/quiz', async (req, res) => {
   try {
-    const { answers } = req.body;
-    const prompt = `Analizează următoarele răspunsuri la un test de personalitate și alege un singur personaj din anime care se potrivește cel mai bine profilului psihologic. Răspunde DOAR cu numele personajului în format text simplu, fără alte explicații sau ghilimele. Răspunsuri: ${JSON.stringify(answers)}`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
+    const { userId, character, anime, reason, image } = req.body;
+    await prisma.user.update({
+      where: { id: Number(userId) },
+      data: { quizCharacter: character, quizAnime: anime, quizReason: reason, quizImage: image }
     });
-    const characterName = response.text.trim();
-    
-    const jikanRes = await fetch(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(characterName)}&limit=1`);
-    const jikanData = await jikanRes.json();
-    let imageUrl = '';
-    let finalName = characterName;
-    
-    if (jikanData.data && jikanData.data.length > 0) {
-      imageUrl = jikanData.data[0].images.jpg.image_url;
-      finalName = jikanData.data[0].name;
-    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
 
-    res.json({ success: true, character: finalName, image: imageUrl });
-  } catch (error) {
+app.get('/quiz', async (req, res) => {
+  try {
+    const userId = Number(req.query.userId);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user && user.quizCharacter) {
+      res.json({ success: true, quiz: { character: user.quizCharacter, anime: user.quizAnime, reason: user.quizReason, image: user.quizImage } });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false });
+  }
+});
+
+app.post('/quiz/reset', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    await prisma.user.update({
+      where: { id: Number(userId) },
+      data: { quizCharacter: null, quizAnime: null, quizReason: null, quizImage: null }
+    });
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ success: false });
   }
 });

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, TextInput, FlatList, Modal, Image, SafeAreaView, Platform, StatusBar, Animated, Alert } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, Switch, TextInput, FlatList, Modal, Image, SafeAreaView, Platform, StatusBar, Animated } from 'react-native';
 import IP from '../var/IP';
 import { LIGHT, DARK } from '../var/Culori';
 
@@ -42,20 +42,26 @@ export default function SettingsScreen() {
       const storedUserId = await AsyncStorage.getItem('userId');
       const storedUsername = await AsyncStorage.getItem('username');
       const themePref = await AsyncStorage.getItem('isDarkTheme');
-      const storedQuiz = await AsyncStorage.getItem('quizResult');
       
       const uid = storedUserId ? Number(storedUserId) : null;
       if (!uid) { router.replace('/logInScreen'); return; }
       
       setUserId(uid);
       if (storedUsername) setUsername(storedUsername);
-      if (storedQuiz) setQuizData(JSON.parse(storedQuiz));
       if (themePref !== null) {
         const isDark = JSON.parse(themePref);
         setIsDarkTheme(isDark);
         setTheme(isDark ? DARK : LIGHT);
       }
       
+      const quizRes = await fetch(`${IP}/quiz?userId=${uid}`);
+      const quizJson = await quizRes.json();
+      if (quizJson.success) {
+        setQuizData(quizJson.quiz);
+      } else {
+        setQuizData(null);
+      }
+
       const favRes = await fetch(`${IP}/favorites?userId=${uid}`);
       const favData = await favRes.json();
       let charsCount = 0, mangaCount = 0, animeCount = 0;
@@ -120,15 +126,36 @@ export default function SettingsScreen() {
   };
 
   const resetQuiz = async () => {
-    await AsyncStorage.removeItem('quizResult');
+    await fetch(`${IP}/quiz/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
     setQuizData(null);
   };
 
   const setManualCharacter = async () => {
     if(!manualCharInput.trim()) return;
-    const manualData = { character: manualCharInput, anime: "Custom", reason: "Manually selected" };
-    await AsyncStorage.setItem('quizResult', JSON.stringify(manualData));
-    setQuizData(manualData);
+    
+    let imageUrl = null;
+    let finalName = manualCharInput;
+
+    try {
+      const jikanRes = await fetch(`https://api.jikan.moe/v4/characters?q=${manualCharInput}&limit=1`);
+      const jikanData = await jikanRes.json();
+      if (jikanData.data && jikanData.data.length > 0) {
+        imageUrl = jikanData.data[0].images?.jpg?.image_url || null;
+        finalName = jikanData.data[0].name;
+      }
+    } catch(e) {}
+    
+    await fetch(`${IP}/quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, character: finalName, anime: "Custom", reason: "Manually selected", image: imageUrl })
+    });
+    
+    setQuizData({ character: finalName, anime: "Custom", reason: "Manually selected", image: imageUrl });
     setShowManualInput(false);
     setManualCharInput('');
   };
@@ -210,10 +237,19 @@ export default function SettingsScreen() {
             {quizData ? (
               <>
                 <Text style={[styles.quizTitle, { color: theme.textSecundar }]}>Personality Match</Text>
-                <Text style={[styles.quizCharacter, { color: theme.text }]}>{quizData.character} <Text style={{fontSize: 14, color: theme.accent, fontWeight: 'normal'}}>({quizData.anime})</Text></Text>
+                
+                <View style={styles.quizResultHeader}>
+                  {quizData.image && <Image source={{ uri: quizData.image }} style={[styles.quizImage, { borderColor: theme.bordura }]} />}
+                  <View style={{flex: 1}}>
+                    <Text style={[styles.quizCharacter, { color: theme.text }]} numberOfLines={1}>{quizData.character}</Text>
+                    <Text style={{fontSize: 14, color: theme.accent}}>{quizData.anime}</Text>
+                  </View>
+                </View>
+
                 {quizData.reason !== "Manually selected" && (
                   <Text style={[styles.quizReason, { color: theme.textSecundar }]}>{quizData.reason}</Text>
                 )}
+                
                 <View style={styles.quizSubtleActions}>
                   <TouchableOpacity onPress={resetQuiz}>
                     <Text style={[styles.subtleText, { color: theme.textSecundar }]}>Retake Quiz</Text>
@@ -303,6 +339,22 @@ export default function SettingsScreen() {
             
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
               
+              {selectedFriend?.quizCharacter && (
+                <View style={[styles.quizResultContainer, { backgroundColor: theme.card, borderColor: theme.bordura, marginHorizontal: 20, marginTop: 25 }]}>
+                  <Text style={[styles.quizTitle, { color: theme.textSecundar, marginBottom: 10 }]}>Personality Match</Text>
+                  <View style={styles.quizResultHeader}>
+                    {selectedFriend.quizImage && <Image source={{ uri: selectedFriend.quizImage }} style={[styles.quizImage, { borderColor: theme.bordura }]} />}
+                    <View style={{flex: 1}}>
+                      <Text style={[styles.quizCharacter, { color: theme.text }]} numberOfLines={1}>{selectedFriend.quizCharacter}</Text>
+                      <Text style={{fontSize: 14, color: theme.accent}}>{selectedFriend.quizAnime}</Text>
+                    </View>
+                  </View>
+                  {selectedFriend.quizReason !== "Manually selected" && (
+                    <Text style={[styles.quizReason, { color: theme.textSecundar, marginTop: 5, marginBottom: 0 }]}>{selectedFriend.quizReason}</Text>
+                  )}
+                </View>
+              )}
+
               <Text style={[styles.sectionTitleModal, { color: theme.text }]}>Reviews & Comments <Text style={{color: theme.textSecundar, fontSize: 16}}>({selectedFriend?.comments?.length || 0})</Text></Text>
               {selectedFriend?.comments?.length > 0 ? (
                 <View style={styles.commentsListContainer}>
@@ -333,7 +385,7 @@ export default function SettingsScreen() {
               ) : (<Text style={[styles.emptyModalText, { color: theme.textSecundar }]}>No items in progress.</Text>)}
 
               <Text style={[styles.sectionTitleModal, { color: theme.text }]}>Favorite Anime <Text style={{color: theme.textSecundar, fontSize: 16}}>({animeFavs.length})</Text></Text>
-              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} /> : animeFavs.length > 0 ? (
+              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} style={{marginHorizontal: 20, alignSelf: 'flex-start'}} /> : animeFavs.length > 0 ? (
                 <FlatList horizontal showsHorizontalScrollIndicator={false} data={animeFavs} keyExtractor={(it) => it.id} contentContainerStyle={{ paddingRight: 20 }}
                   renderItem={({ item }) => (
                     <View style={styles.friendCard}>
@@ -345,7 +397,7 @@ export default function SettingsScreen() {
               ) : (<Text style={[styles.emptyModalText, { color: theme.textSecundar }]}>No anime added.</Text>)}
 
               <Text style={[styles.sectionTitleModal, { color: theme.text }]}>Favorite Manga <Text style={{color: theme.textSecundar, fontSize: 16}}>({mangaFavs.length})</Text></Text>
-              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} /> : mangaFavs.length > 0 ? (
+              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} style={{marginHorizontal: 20, alignSelf: 'flex-start'}} /> : mangaFavs.length > 0 ? (
                 <FlatList horizontal showsHorizontalScrollIndicator={false} data={mangaFavs} keyExtractor={(it) => it.id} contentContainerStyle={{ paddingRight: 20 }}
                   renderItem={({ item }) => (
                     <View style={styles.friendCard}>
@@ -357,7 +409,7 @@ export default function SettingsScreen() {
               ) : (<Text style={[styles.emptyModalText, { color: theme.textSecundar }]}>No manga added.</Text>)}
 
               <Text style={[styles.sectionTitleModal, { color: theme.text }]}>Favorite Characters <Text style={{color: theme.textSecundar, fontSize: 16}}>({charFavs.length})</Text></Text>
-              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} /> : charFavs.length > 0 ? (
+              {loadingFriend ? <ActivityIndicator size="small" color={theme.accent} style={{marginHorizontal: 20, alignSelf: 'flex-start'}} /> : charFavs.length > 0 ? (
                 <FlatList horizontal showsHorizontalScrollIndicator={false} data={charFavs} keyExtractor={(it) => it.id} contentContainerStyle={{ paddingRight: 20 }}
                   renderItem={({ item }) => (
                     <View style={styles.friendCard}>
@@ -410,17 +462,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 25,
   },
+  quizResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quizImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 15,
+    borderWidth: 1,
+  },
   quizTitle: {
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontWeight: 'bold',
-    marginBottom: 8,
   },
   quizCharacter: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 2,
   },
   quizReason: {
     fontSize: 14,
@@ -570,6 +633,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 20 : 20,
     borderBottomWidth: 1,
   },
   modalTitle: {

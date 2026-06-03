@@ -26,26 +26,53 @@ export default function AiChatScreen() {
     }, [])
   );
 
-  const sendMessage = async () => {
-    if (!inputText.trim()) return;
-    const userMsg = { id: Date.now().toString(), text: inputText, sender: 'user' };
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
-    setLoading(true);
-
-    try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const prompt = `You are a helpful, extremely knowledgeable anime and manga assistant. Answer this query: ${userMsg.text}`;
-      const result = await model.generateContent(prompt);
-      const aiResponse = result.response.text();
-
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: aiResponse, sender: 'ai' }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: "Connection error. Please try again.", sender: 'ai' }]);
-    } finally {
-      setLoading(false);
-    }
+  const cleanMarkdown = (text) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/#{1,6}\s?/g, '')
+      .replace(/`(.*?)`/g, '$1');
   };
+
+  const sendMessage = async () => {
+  if (!inputText.trim()) return;
+
+  const userMsg = { id: Date.now().toString(), text: inputText, sender: 'user' };
+  const newMessages = [...messages, userMsg];
+  setMessages(newMessages);
+  setInputText('');
+  setLoading(true);
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+
+    const history = newMessages.slice(-6).map(m => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
+
+    const prompt = `You are a helpful, expert anime and manga assistant. 
+Strict rules for your response:
+1. Answer in plain text ONLY. DO NOT use any Markdown formatting (no asterisks, no hashes, no bold/italic).
+2. CRITICAL: Identify the language of the user's query and respond in that EXACT same language.
+3. Ensure your response has flawless grammar, correct spelling, and uses natural phrasing for that specific language.
+4. You should respond ONLY to anime/manga related questions. If the user's query is not related to anime/manga, politely inform them that you can only assist with anime/manga topics.
+5. If the user changes the subject entirely, treat it as a new conversation and ignore previous context.
+
+Conversation History:
+${history}
+
+Assistant:`;
+
+    const result = await model.generateContent(prompt);
+    let aiResponse = result.response.text();
+    aiResponse = cleanMarkdown(aiResponse);
+
+    setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: aiResponse, sender: 'ai' }]);
+  } catch (error) {
+    console.error("DETALII EROARE GEMINI:", error);
+    setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), text: `Eroare reală: ${error.message}`, sender: 'ai' }]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderMessage = ({ item }) => {
     const isUser = item.sender === 'user';
